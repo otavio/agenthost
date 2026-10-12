@@ -4,6 +4,10 @@
 # production (it is intentionally absent from wrangler.jsonc).
 DEV_MODE=1
 
+# The account dashboard (account.{APEX_HOST}) treats this email as signed in.
+# Invite it from the admin first, or the dashboard answers "not invited".
+DEV_ACCOUNT_EMAIL=you@example.com
+
 # Required only for exercising direct asset transfers against a real R2 bucket.
 # Use bucket-scoped Object Read & Write credentials; never commit .dev.vars.
 R2_ACCOUNT_ID=
