@@ -7,14 +7,15 @@ This directory is the maintained source for verifying agenthost's user-facing be
 - Start the instance with `RUN=$(.agents/skills/verify-agenthost/scripts/launch.sh)` and `. "$RUN/env"`.
 - Every run starts from an empty R2 bucket in `$RUN/state`. The seed data is whatever the recipe publishes first.
 - `.agents/skills/verify-agenthost/scripts/doctor.sh "$RUN"` prints only `ok` lines.
-- The apex is `localhost`. Sites live at `http://<user>-<site>.localhost:$PORT/`, admin at `http://admin.localhost:$PORT/`, and the control plane at `$BASE`.
+- The apex is `localhost`. Sites live at `http://<user>-<site>.localhost:$PORT/`, admin at `http://admin.localhost:$PORT/`, the account dashboard at `http://account.localhost:$PORT/`, and the control plane at `$BASE`.
+- Publishing is invite-only. Before any publish, invite `owner@example.com` and get a token as described in [account-dashboard](./account-dashboard.md).
 - Drive only an instance that this run launched.
 
 ## Driving conventions
 
 - The agent surface is `curl` against `$BASE`. The human surface is the `preview_*` tools on the `*.localhost` URLs.
 - Rewrite every URL the API returns with `scripts/local-url.sh "$RUN" <url>`. Never hand-edit the port.
-- Keep `username`, `ownerToken` and `accessKey` from the publish response in `$RUN/evidence/<feature>-publish.json`. Later steps read them with `jq`.
+- Keep `username` and `accessKey` from the publish response, and the token from the account dashboard, in `$RUN/evidence/<feature>-publish.json`. Later steps read them with `jq`.
 - In the browser, prefer role and name locators (`role=button[name='Share']`). Open tabs with `reuseExistingTab: false` and pass the `tabId` on every call.
 - Take commands literally. Query parameters (`id`, `username`) and headers (`Authorization: Bearer`, `Host`) are the contract.
 
@@ -41,4 +42,5 @@ Each feature file starts with an H1 and one paragraph describing the user-visibl
 - [Private access and share links](./private-access.md) covers the key gate, the share-link cookie, key rotation and the public toggle.
 - [Redeploy the same URL](./redeploy.md) covers owner-token republishing, the generation bump and orphan removal.
 - [Admin console](./admin-console.md) covers the user and site inventory, plan changes and takedown and restore.
+- [Account dashboard and invites](./account-dashboard.md) covers admin invites, token generation, and the user's site and file management.
 - [Large downloadable assets](./large-assets.md) covers the direct-R2 asset flow, which needs real R2 credentials.

@@ -28,5 +28,5 @@ Preconditions:
 
 ## Gotchas
 
-- Without the Bearer header, `?username=` is ignored and a brand-new account is minted. That passes as a 200, so check that `username` in the response is unchanged.
+- Without the Bearer header the publish returns 401. Generating a new token in the account dashboard makes the old one return 403.
 - Hosted HTML is cached per generation. Compare generations in the publish response rather than trusting a browser tab that may show a stale page.
