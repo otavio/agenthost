@@ -113,11 +113,31 @@ to host your own instance.
 
 ## Develop
 
+With Nix and direnv installed, enable the development shell once per checkout:
+
 ```bash
-pnpm install
+direnv allow
+direnv exec . pnpm setup:dev
+```
+
+The shell provides Node.js 24, pnpm 10, Git, curl, jq, and format and lint tools.
+The flake uses [red-tape](https://github.com/phaer/red-tape) to load the shell
+and formatter from `nix/`. Run `nix fmt` to format the Nix files.
+The setup command installs locked dependencies and creates `worker/.dev.vars`
+from the example if the file does not exist. Existing local settings are kept.
+
+On NixOS, enable `programs.nix-ld.enable = true` for the npm Linux binaries.
+The shell supplies the runtime library paths. To enter without direnv, run
+`nix develop`.
+
+```bash
+pnpm setup:dev
 pnpm -C worker dev      # wrangler dev with a local R2 + cache
 pnpm -C admin dev       # admin SPA, proxying its API to the local worker
 ```
+
+To preview the complete application, run `pnpm dev` and open
+`http://localhost:8787`. Run `pnpm typecheck` and `pnpm test` to check changes.
 
 ## Build & deploy
 
