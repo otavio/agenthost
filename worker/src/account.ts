@@ -8,6 +8,7 @@ import type { Env } from "./env";
 import { LIMITS } from "./config";
 import { verifyAccessJwt, type OwnerCtx } from "./auth";
 import { normalizeEmail, userForEmail } from "./invites";
+import { renameAccount } from "./rename";
 import {
   assetMetaKey,
   deleteSite,
@@ -43,7 +44,7 @@ async function accessEmail(req: Request, env: Env): Promise<string | null> {
 async function viewer(req: Request, env: Env): Promise<Viewer> {
   const email = await accessEmail(req, env);
   if (!email) return { ok: false, error: "forbidden" };
-  const found = await userForEmail(env.SITES, email);
+  const found = await userForEmail(env.SITES, email, req.method !== "GET" && req.method !== "HEAD");
   return found ? { ok: true, owner: found } : { ok: false, error: "not invited", email };
 }
 
@@ -108,7 +109,7 @@ api.get("/me", async (c) => {
     url: assetUrl(apex, username, a.id),
     expiresAt: expiresAt(c.var.owner, a.lastDeployAt),
   }));
-  return c.json({ username, email: user.email, plan: user.plan, sites, assets });
+  return c.json({ username, email: user.email, plan: user.plan, renamedFrom: user.renamedFrom, sites, assets });
 });
 
 api.post("/token", async (c) => {
@@ -116,6 +117,13 @@ api.post("/token", async (c) => {
   const token = generateOwnerToken();
   await putUser(c.env.SITES, username, { ...user, tokenHash: await sha256Hex(token) });
   return c.json({ username, token });
+});
+
+api.post("/username", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { username?: unknown };
+  const result = await renameAccount(c.env.SITES, c.var.owner, body.username);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(result, result.complete ? 200 : 202);
 });
 
 // Matches the apex /key/rotate, so old share links stop working.

@@ -20,6 +20,7 @@ export interface UserRecord {
   plan: "free" | "paid";
   customDomain?: string;
   createdAt: number;
+  renamedFrom?: string; // set on the target record while a self-service rename is in progress
 }
 
 export interface DomainRecord {
