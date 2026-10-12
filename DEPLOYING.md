@@ -13,6 +13,9 @@ email, Access team, API tokens) is supplied by you through config and secrets.
 - **Node 20+** and **pnpm** (`corepack enable` then `pnpm --version`).
 - **Wrangler** is installed as a dev dependency — you'll run it via `pnpm`.
 
+For the Nix development shell, run `direnv allow`, then `direnv exec . pnpm setup:dev`.
+See [Develop](./README.md#develop) for the NixOS runtime requirement.
+
 Log in once: `pnpm -C worker exec wrangler login`.
 
 ## 1. Configure your domain
@@ -124,7 +127,7 @@ or `wrangler.jsonc` change is required.
 ## 6. Deploy
 
 ```bash
-pnpm install
+pnpm setup:dev
 pnpm run deploy
 ```
 

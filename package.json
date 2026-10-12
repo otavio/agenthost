@@ -7,6 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "setup:dev": "bash scripts/setup-dev.sh",
     "build": "turbo run build",
     "deploy": "turbo run build && pnpm run assets && pnpm -C worker run deploy",
     "dev": "turbo run build && pnpm run assets && pnpm -C worker run dev",
