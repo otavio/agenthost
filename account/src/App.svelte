@@ -1,12 +1,16 @@
 <script>
   const API = "/account/api";
-  const apexBase = `${location.protocol}//${location.host.replace(/^account\./, "")}`;
+  const apexHost = location.host.replace(/^account\./, "");
+  const apexBase = `${location.protocol}//${apexHost}`;
 
   let me = $state(null);
   let error = $state("");
   let toast = $state("");
   let token = $state("");
   let links = $state({});
+  let renaming = $state(false);
+  let newName = $state("");
+  let moving = $state(false);
 
   async function api(path, opts) {
     const res = await fetch(API + path, opts);
@@ -27,7 +31,36 @@
     try { await fn(); } catch (e) { error = e.message; }
   }
 
-  const load = () => run(async () => { me = await api("/me"); });
+  // The server moves a bounded number of files per request and answers
+  // complete: false until it is done, including after an interrupted rename.
+  async function moveTo(name) {
+    moving = true;
+    try {
+      let done = false;
+      while (!done) done = (await post("/username", { username: name })).complete;
+    } finally {
+      moving = false;
+    }
+    me = await api("/me");
+  }
+
+  const load = () => run(async () => {
+    me = await api("/me");
+    if (me.renamedFrom) await moveTo(me.username);
+  });
+
+  const nameValid = $derived(/^[a-z0-9]{2,30}$/.test(newName.trim().toLowerCase()));
+
+  const changeUsername = () => {
+    const name = newName.trim().toLowerCase();
+    if (!confirm(`Change your username to ${name}?\n\nEvery page's address changes to ${name}-<site>.${apexHost}, and old links stop working. Your agent must publish with the new username. The agent token stays the same.`)) return;
+    run(async () => {
+      await moveTo(name);
+      renaming = false;
+      newName = "";
+      flash(`username is now ${name}`);
+    });
+  };
 
   async function copy(text) {
     await navigator.clipboard.writeText(text);
@@ -109,6 +142,20 @@
         <p class="muted">Your agent publishes with this token and your username, <span class="name">{me.username}</span>.</p>
       {/if}
       <button onclick={generateToken}>Generate agent token</button>
+      <div class="rename">
+        {#if moving}
+          <p class="muted">Moving your pages to the new username…</p>
+        {:else if renaming}
+          <form onsubmit={(e) => { e.preventDefault(); changeUsername(); }}>
+            <input bind:value={newName} placeholder="new username" maxlength="30" autocomplete="off" spellcheck="false" aria-label="new username" />
+            <button disabled={!nameValid}>Change</button>
+            <button type="button" class="ghost" onclick={() => { renaming = false; newName = ""; }}>Cancel</button>
+          </form>
+          <p class="muted small">2-30 lowercase letters or digits.</p>
+        {:else}
+          <button class="ghost sm" onclick={() => (renaming = true)}>Change username</button>
+        {/if}
+      </div>
     </section>
 
     <section class="panel">
@@ -194,6 +241,11 @@
   .secret code, .secret pre { flex: 1; margin: 0; font: 13px/1.5 ui-monospace, Menlo, monospace; word-break: break-all; white-space: pre-wrap; }
   button { background: var(--accent); color: #07111f; border: 0; border-radius: 8px; padding: 8px 13px; font-weight: 600; font-size: 13px; cursor: pointer; }
   button:hover { opacity: .9; }
+  button:disabled { opacity: .4; cursor: default; }
+  .rename { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .rename form { display: flex; gap: 8px; }
+  .rename p { margin: 6px 0 0; }
+  input { background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: 13px ui-monospace, Menlo, monospace; }
   button.ghost { background: transparent; color: var(--fg); border: 1px solid var(--border); }
   button.danger { background: var(--red); color: #2a0707; }
   button.sm { padding: 5px 9px; font-size: 12px; white-space: nowrap; }
