@@ -9,33 +9,36 @@ const free = LIMITS.free;
 const freeAssets = ASSET_LIMITS.free;
 const mb = (bytes: number) => `${Math.round(bytes / MB)} MB`;
 
-export const llmsTxt = (apexHost: string): string => `# agenthost — publish a static site or docs, get a private share link. No signup.
+export const llmsTxt = (apexHost: string): string => `# agenthost — publish a static site or docs, get a private share link. Invite-only.
+
+## Account (once, done by the human)
+Publishing is invite-only. The operator invites the human by email. The human
+signs in at https://account.${apexHost}, generates an agent token, and gives you
+the token and their username. A publish without the token returns 401.
 
 ## Publish (one command, zero install)
 # A single .md or .html — pipe it straight in (md renders, html is served as-is;
 # the file lands at the site root /):
 curl -s --data-binary @report.md \\
-  https://${apexHost}/publish?id=report
+  -H 'Authorization: Bearer <ownerToken>' \\
+  'https://${apexHost}/publish?id=report&username=<username>'
 
 # A whole folder — pipe a tar of it:
 tar cf - -C ./dist . | curl -s --data-binary @- \\
-  https://${apexHost}/publish?id=myblog
+  -H 'Authorization: Bearer <ownerToken>' \\
+  'https://${apexHost}/publish?id=myblog&username=<username>'
 
 ## Response (JSON)
 {
   "shareUrl": "https://cleverotter4f2-myblog.${apexHost}/?k=<key>",  // hand THIS to a human; private + pre-authed
   "url": "https://cleverotter4f2-myblog.${apexHost}/",              // bare URL (prompts for the key)
   "accessKey": "<the site access key, also embedded in shareUrl>",
-  "username": "cleverotter4f2",                                          // your account name (auto-generated, no hyphens)
-  "ownerToken": "<SAVE THIS to redeploy the same URL later>"
+  "username": "cleverotter4f2"                                           // your account name (auto-generated, no hyphens)
 }
 
-## Redeploy the SAME url (needs ownerToken)
-tar cf - -C ./dist . | curl --data-binary @- \\
-  -H 'Authorization: Bearer <ownerToken>' \\
-  'https://${apexHost}/publish?id=myblog&username=<username>'
+Publishing again with the same id replaces the content at the same URL.
 
-## Large downloadable assets (existing account required)
+## Large downloadable assets
 Three calls, all with -H 'Authorization: Bearer <ownerToken>' except the PUT:
 1. POST https://${apexHost}/asset?username=<username> with JSON
    {"name":"demo.mp4","bytes":<exact size>,"contentType":"video/mp4"}

@@ -15,9 +15,9 @@ metadata:
 
 Publish a page, a folder or a set of Markdown docs, or upload a large file, and get back a **private link** a human opens in one click. It's plain `curl` and `tar` against `https://agenthost.page` (or the user's self-hosted domain), no install needed.
 
-## One account, reused forever
+## Credentials from the human
 
-A publish without `Authorization` **mints a brand-new account**, every time, even if you pass a `username`. Do that exactly once: from the first response, save `username` and `ownerToken` wherever the environment keeps durable secrets, and send them on every publish after, new `id`s included. Without it nothing can be redeployed and assets can't be uploaded. The `ownerToken` is shown once; lose it and you start over with new URLs.
+Publishing is invite-only, and a publish without `Authorization` returns 401. The human signs in at `https://account.agenthost.page` (the `account.` host of a self-hosted domain), generates an agent token, and gives you the token and their `username`. Save both wherever the environment keeps durable secrets and send them on every publish. If you have neither, ask the human for them. Generating a new token in the dashboard invalidates the old one, so a 403 after working publishes means you need the new token.
 
 Below, `$AGENTHOST_USERNAME` and `$AGENTHOST_OWNER_TOKEN` hold them.
 
@@ -26,10 +26,6 @@ Below, `$AGENTHOST_USERNAME` and `$AGENTHOST_OWNER_TOKEN` hold them.
 `id` becomes the subdomain: `{username}-{id}.agenthost.page`. Same account + same `id` → same URL, content replaced. Leaving out `id` publishes to `site`, overwriting it.
 
 ```bash
-# first publish ever: mints the account
-curl -s --data-binary @report.md 'https://agenthost.page/publish?id=report'
-
-# every publish after
 curl -s --data-binary @report.md \
   -H "Authorization: Bearer $AGENTHOST_OWNER_TOKEN" \
   "https://agenthost.page/publish?id=report&username=$AGENTHOST_USERNAME"
@@ -47,11 +43,11 @@ Absolute (`/css/app.css`) and relative (`./css/app.css`) asset paths both resolv
 
 `shareUrl` carries the site's access key (`?k=…`) and logs the visitor in on first open. **The key is only returned on a site's first publish**: a redeploy returns a bare `shareUrl` that asks for a key. So record the link from the first publish of each `id` next to the deliverable, and give that same link again after redeploys. Pages already open in a browser reload themselves when you republish.
 
-If the link is lost, `POST /key/rotate` mints a new one and kills the old ones. To remove the gate completely, make the site public (see the reference).
+If the link is lost, `POST /key/rotate` mints a new one and kills the old ones. The human can do the same with "New share link" in the account dashboard. To remove the gate completely, make the site public (see the reference).
 
 ## Upload a downloadable asset
 
-Use this for files that aren't a site (video, archive, dataset): up to 100 MB on free, 5 GB on paid. It needs the account. The bytes go straight to R2, never through agenthost.
+Use this for files that aren't a site (video, archive, dataset): up to 100 MB on free, 5 GB on paid. The bytes go straight to R2, never through agenthost.
 
 ```bash
 # 1. initiate; bytes must be the exact file size
@@ -77,4 +73,4 @@ Hand over the `shareUrl` from **step 1**; completing doesn't repeat it.
 - Free: 50 files, 5 MB per file, 250 MB per site, 500 MB per account (sites and assets combined). Free sites are deleted 15 days after their last publish, so republish to keep one alive.
 - `_gen` and `_meta` are reserved filenames.
 
-Public sites, key rotation, recovery email, deleting assets, every response field and error code: [references/http-api.md](references/http-api.md).
+Public sites, key rotation, deleting assets, every response field and error code: [references/http-api.md](references/http-api.md).

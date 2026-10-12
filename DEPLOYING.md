@@ -101,6 +101,29 @@ They ship as secrets so no operator's identity lives in the repo, and because
 secrets survive `wrangler deploy` untouched (dashboard-only *vars* would be wiped
 on the next deploy unless declared in config).
 
+### Account dashboard (second Access application)
+
+Publishing is invite-only. Invited users sign in to `account.example.com` to get
+their agent token and manage their sites. Access lets any email through, and the
+Worker decides who is invited.
+
+1. Add a **proxied** DNS record for `account.example.com`, the same way as the
+   admin record.
+2. In **Zero Trust → Settings → Authentication**, make sure the **One-time PIN**
+   login method is enabled.
+3. Create a second **Zero Trust → Access → Application** (self-hosted) on
+   `account.example.com`. Allow the One-time PIN login method, and add an Allow
+   policy that includes **Everyone**, so any email can sign in.
+4. Set its Application Audience (AUD) tag as a secret. The account surface uses the
+   same `ACCESS_TEAM_DOMAIN` as the admin:
+   ```bash
+   pnpm -C worker exec wrangler secret put ACCOUNT_ACCESS_AUD
+   ```
+
+While `ACCOUNT_ACCESS_AUD` is unset, the account surface answers 403. Invite users
+from the admin console (the form above the user list) or with
+`POST /admin/api/users` and `{"email": "...", "plan": "free"}`.
+
 ## 5. Optional: custom domains (no paid tier needed)
 
 To let a user bring their own domain (`status.acme.com`), you don't need
@@ -131,16 +154,20 @@ pnpm setup:dev
 pnpm run deploy
 ```
 
-`pnpm run deploy` builds the landing (Astro) and admin (Svelte) to static output,
+`pnpm run deploy` builds the landing (Astro), admin and account (Svelte) to static output,
 copies them into `public/`, and runs one `wrangler deploy` that ships the Worker +
 both static bundles.
 
 ## 7. Verify
 
+Invite your own email from the admin console, sign in at
+`https://account.example.com`, and generate an agent token. Then:
+
 ```bash
 # publish a one-file site
 echo '<h1>hello</h1>' | curl -s --data-binary @- \
-  -H 'Content-Type: text/html' 'https://example.com/publish?id=test'
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: text/html' "https://example.com/publish?id=test&username=$USERNAME"
 ```
 
 The JSON response includes a `shareUrl` — open it and you should see the page over
@@ -156,11 +183,13 @@ cp worker/.dev.vars.example worker/.dev.vars
 ```
 
 `DEV_MODE=1` bypasses Cloudflare Access for the admin and enables the
-`?__host=` routing override so you can reach any host locally. Then:
+`?__host=` routing override so you can reach any host locally. On the account
+dashboard it treats `DEV_ACCOUNT_EMAIL` as the signed-in email. Then:
 
 ```bash
-pnpm dev            # wrangler dev with a local (Miniflare) R2 + cache
-pnpm -C admin dev   # admin SPA, proxying its API to the local worker
+pnpm dev              # wrangler dev with a local (Miniflare) R2 + cache
+pnpm -C admin dev     # admin SPA, proxying its API to the local worker
+pnpm -C account dev   # account SPA, same proxy setup
 ```
 
 `wrangler dev` simulates R2 and the Cache API locally, so the full
@@ -178,7 +207,9 @@ publish → serve loop runs offline against a fixture directory.
 | `ALLOWED_ADMIN_EMAIL` | secret (`wrangler secret put`) | admin only | Email allowed into the admin. |
 | `ACCESS_TEAM_DOMAIN` | secret (`wrangler secret put`) | admin only | Zero Trust team name. |
 | `ACCESS_AUD` | secret (`wrangler secret put`) | admin only | Access Application AUD tag. |
+| `ACCOUNT_ACCESS_AUD` | secret (`wrangler secret put`) | yes | AUD tag of the Access app on `account.{APEX_HOST}`. |
 | `DEV_MODE` | `.dev.vars` | local dev | `1` bypasses Access + enables `?__host=`. |
+| `DEV_ACCOUNT_EMAIL` | `.dev.vars` | local dev | Signed-in email on the account dashboard under `DEV_MODE`. |
 
 Custom domains need no config or secrets — see §5 (dashboard-only setup).
 
