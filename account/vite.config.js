@@ -1,9 +1,10 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { apexHost } from "../scripts/deploy-config.mjs";
 
-// Must match APEX_HOST in worker/wrangler.jsonc (override via APEX_HOST when you
-// self-host on another domain). The dashboard lives on account.{APEX_HOST}.
-const APEX_HOST = process.env.APEX_HOST || "agenthost.page";
+// Read from worker/wrangler.jsonc (override via APEX_HOST). The dashboard lives
+// on account.{APEX_HOST}.
+const APEX_HOST = apexHost();
 
 // Built to account/dist → copied to public/account/. The Worker's account host
 // maps root-absolute asset paths under /account/.
