@@ -19,6 +19,8 @@ export interface Env {
   ALLOWED_ADMIN_EMAIL?: string;
   ACCESS_TEAM_DOMAIN?: string; // your Access team, e.g. "acme" → https://acme.cloudflareaccess.com
   ACCESS_AUD?: string; // Access Application audience (AUD) tag from the dashboard
+  ACCOUNT_ACCESS_AUD?: string; // AUD tag of the second Access app, on account.{APEX_HOST}
+  DEV_ACCOUNT_EMAIL?: string; // signed-in email on the account dashboard in local dev
   DEV_MODE?: string; // "1" honors the ?__host= routing override — local dev only
   // Custom domains need no bindings: the admin records a `_domains` mapping and
   // completes routing + TLS once per domain in the dashboard (see domains.ts).

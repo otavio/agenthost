@@ -97,7 +97,7 @@ async function loadCerts(teamDomain: string): Promise<void> {
   certsExpireAt = Date.now() + CERTS_TTL_MS;
 }
 
-async function verifyAccessJwt(
+export async function verifyAccessJwt(
   token: string,
   teamDomain: string,
   aud: string,
