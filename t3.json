@@ -1,0 +1,34 @@
+{
+  "$schema": "https://t3.codes/schema/t3.json",
+  "scripts": [
+    {
+      "name": "Setup development environment",
+      "command": "direnv allow && direnv exec . pnpm setup:dev",
+      "icon": "configure",
+      "runOnWorktreeCreate": true,
+      "async": false
+    },
+    {
+      "name": "Preview",
+      "command": "direnv exec . pnpm dev",
+      "icon": "play",
+      "previewUrl": "http://localhost:8787",
+      "autoOpenPreview": true
+    },
+    {
+      "name": "Test",
+      "command": "direnv exec . pnpm test",
+      "icon": "test"
+    },
+    {
+      "name": "Typecheck",
+      "command": "direnv exec . pnpm typecheck",
+      "icon": "lint"
+    },
+    {
+      "name": "Deploy",
+      "command": "direnv exec . pnpm deploy",
+      "icon": "build"
+    }
+  ]
+}

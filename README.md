@@ -132,6 +132,11 @@ pnpm -C admin dev       # admin SPA, proxying its API to the local worker
 To preview the complete application, run `pnpm dev` and open
 `http://localhost:8787`. Run `pnpm typecheck` and `pnpm test` to check changes.
 
+In T3 Code, use the scripts from `t3.json` to set up the environment, preview,
+test, typecheck, or deploy. New worktrees run setup before the agent starts.
+The Preview action starts the full application and opens its local URL.
+All actions run through direnv.
+
 ## Build & deploy
 
 ```bash
