@@ -26,3 +26,11 @@ if (await exists(adminDist)) {
 } else {
   console.warn("admin/dist missing — skipping");
 }
+
+const accountDist = resolve(root, "account/dist");
+if (await exists(accountDist)) {
+  await cp(accountDist, resolve(publicDir, "account"), { recursive: true });
+  console.log("copied account/dist → public/account/");
+} else {
+  console.warn("account/dist missing — skipping");
+}
