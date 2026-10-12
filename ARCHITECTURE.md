@@ -574,6 +574,18 @@ gone. Every account starts as an admin invite.
   link. Assets can be
   deleted. Everything else under the host is the dashboard SPA from Static Assets
   (`public/account/`).
+- **Username change.** `POST /account/api/username` with `{ username }` moves the account
+  to a new name. The Worker claims `_users/{to}` with an R2 put-if-absent
+  (`onlyIf: { etagDoesNotMatch: "*" }`), so two users cannot both take one name, and a
+  name in use returns 409. The new record carries `renamedFrom` while the move runs. The
+  Worker copies the `sites/` and `_sites/` objects, rewrites asset metadata (blobs keep
+  their keys), repoints `_domains/{host}`, deletes `_users/{from}`, and clears
+  `renamedFrom`. One request moves at most 12 objects, because Workers Free allows 50
+  subrequests per invocation, and answers 202 with `complete: false` until the move is
+  done. The dashboard repeats the request, and every step is safe to repeat. Mid-move,
+  the email lookup prefers the record with `renamedFrom`, and account writes skip the
+  email cache. Old site hosts return 404 afterwards, and the token works only with the
+  new name. The upstream admin rename at `/admin/api/rename` is unchanged.
 - **CSRF.** Hosted sites on `*.{APEX_HOST}` are same-site with
   `account.{APEX_HOST}`, so SameSite cookies do not stop a hosted page from posting to
   the dashboard with the user's Access cookie. The Worker rejects every non-GET/HEAD
