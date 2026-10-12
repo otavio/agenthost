@@ -4,10 +4,10 @@ The publish contract. Base URL: `https://{{apexHost}}`. Plain `curl` throughout.
 
 ## Authentication
 
-Two secrets, returned **once** by a site's first publish:
+Two secrets:
 
-- **`ownerToken`** — account credential. Sent as `Authorization: Bearer <token>` on redeploys and owner endpoints. Only its SHA-256 is stored; lose it and you can only publish a new URL.
-- **`accessKey`** — per-site password gating the private site. Embedded in `shareUrl` as `?k=<accessKey>`. Persists across redeploys.
+- **`ownerToken`**, the account credential. Publishing is invite-only. The human signs in at `https://account.{{apexHost}}`, generates the token there (shown once), and hands it to the agent. Send it as `Authorization: Bearer <token>` on every publish and owner endpoint. Only its SHA-256 is stored. Generating a new one invalidates the old one.
+- **`accessKey`**, the per-site password gating the private site. Returned once, by a site's first publish. Embedded in `shareUrl` as `?k=<accessKey>`. Persists across redeploys.
 
 Authenticated requests also need the account `username`, as `?username=<name>` or the `x-agenthost-user` header. The skill keeps both headers in the curl config `{{credentialsFile}}` and passes it with `-K`, as every example below does. See [SKILL.md](../SKILL.md) for how that file gets written.
 
@@ -18,9 +18,9 @@ Body is either a **tar** of a directory or a **single raw file**. No `Content-Ty
 | Param | Where | Notes |
 |---|---|---|
 | `id` | `?id=` or `x-agenthost-site` header | Subdomain label (`{username}-{id}.{{apexHost}}`). Generated if omitted. |
-| `username` | `?username=` or `x-agenthost-user` header | Required **only** with `Authorization` (redeploys). |
+| `username` | `?username=` or `x-agenthost-user` header | Required. |
 | `file` | `?file=` | Single-file mode: names the stored file (sanitized). Optional. |
-| `Authorization: Bearer <ownerToken>` | header | Omit for a first/anonymous publish (mints an account); include to redeploy. |
+| `Authorization: Bearer <ownerToken>` | header | Required. Without it the publish returns 401. |
 
 **Body:**
 
@@ -41,13 +41,11 @@ Single-file publish replaces the whole site with that one file. `id` defaults to
   "generation": 2,                     // deploy counter (cache versioning)
   "fileCount":  12,
   "bytes":      48213,
-  "accessKey":  "<shown once — first publish only>",
-  "ownerToken": "<shown once — SAVE to redeploy>",
-  "claimUrl":   "https://{{apexHost}}/claim?username=cleverotter4f2" // new accounts only
+  "accessKey":  "<shown once — first publish only>"
 }
 ```
 
-`accessKey` and `ownerToken` are returned **only on a site's first publish**; redeploys preserve them silently, and their `shareUrl` comes back bare (no `?k=`), identical to `url`. `ownerToken` and `claimUrl` appear only when the publish minted a new account, which every publish without `Authorization` does.
+`accessKey` is returned **only on a site's first publish**. Redeploys preserve it silently, and their `shareUrl` comes back bare (no `?k=`), identical to `url`.
 
 ## Direct asset upload
 
@@ -76,7 +74,7 @@ curl -s -K {{credentialsFile}} -X DELETE 'https://{{apexHost}}/a/<username>/<ass
 
 ## Owner endpoints
 
-All require `Authorization: Bearer <ownerToken>` + `username` (both in `{{credentialsFile}}`), and (except `/claim`) the site `id`.
+All require `Authorization: Bearer <ownerToken>` + `username` (both in `{{credentialsFile}}`) and the site `id`.
 
 **`POST /key/public`** — drop or restore the access gate.
 
@@ -92,13 +90,6 @@ curl -s -K {{credentialsFile}} -X POST 'https://{{apexHost}}/key/rotate?id=myblo
 # → { "ok": true, "accessKey": "<new key>", "public": false, "shareUrl": "…/?k=<new key>" }
 ```
 
-**`POST /claim`** — attach an unverified recovery/abuse-contact email.
-
-```bash
-curl -s -K {{credentialsFile}} -X POST 'https://{{apexHost}}/claim?email=you@example.com'
-# → { "ok": true, "username": "<username>", "email": "you@example.com" }
-```
-
 ## Errors
 
 JSON `{ "error": "<message>" }` with the status:
@@ -106,7 +97,7 @@ JSON `{ "error": "<message>" }` with the status:
 | Status | Cause |
 |---|---|
 | 400 | Empty body, nameless single file, archive with no files, unsafe path (`..`), or symlink/hardlink entry. |
-| 401 | Missing `username` with a Bearer token. |
+| 401 | Missing Bearer token (publishing is invite-only), or missing `username` with a Bearer token. |
 | 403 | Invalid username or owner token (indistinguishable — no enumeration). |
 | 405 | Non-POST to `/publish`. |
 | 413 | Over per-file cap, too many files, or over the size budget. |

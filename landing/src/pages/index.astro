@@ -12,7 +12,7 @@ const githubUrl = import.meta.env.PUBLIC_GITHUB_URL ?? "https://github.com/ceifa
 
 // A real sequence, so it is numbered.
 const steps = [
-  ["You ask.", "One sentence, in the agent you already use. Nothing to install, no account to create."],
+  ["You ask.", "One sentence, in the agent you already use. Nothing to install. The agent publishes with the token from your account page."],
   ["It publishes.", "The agent reads the instructions at agenthost.page on its own and uploads what it built."],
   ["You get a link.", "Private, ready to open, safe to forward. Publish again and the address stays the same."],
 ];
@@ -35,7 +35,7 @@ const agents = ["Claude Code", "Cursor", "Codex", "OpenClaw", "Hermes"];
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <SeoHead
       title="agenthost: ask your agent, get a private link"
-      description="Ask your AI agent to publish a page, a docs folder or a large file with agenthost, and it hands you a private link. Free, no signup, nothing to install."
+      description="Ask your AI agent to publish a page, a docs folder or a large file with agenthost, and it hands you a private link. Invite-only, nothing to install."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -202,7 +202,7 @@ const agents = ["Claude Code", "Cursor", "Codex", "OpenClaw", "Hermes"];
         <h1>Your agent built it.<br />Now let someone see it.</h1>
         <p class="lead">
           Ask your AI agent to publish a page, a docs folder or a large file with agenthost.
-          It hands you back a private link. <strong>Free, no signup, nothing to install.</strong>
+          It hands you back a private link. <strong>Invite-only, nothing to install.</strong>
         </p>
 
         <div class="ask">
@@ -256,7 +256,7 @@ const agents = ["Claude Code", "Cursor", "Codex", "OpenClaw", "Hermes"];
         <div class="wrap">
           <h2>Free and open</h2>
           <p class="sub">
-            Anonymous publishing is free and needs no card. The whole thing is open source under MIT,
+            Publishing is invite-only. The operator invites you by email, and your account page gives your agent its token. The whole thing is open source under MIT,
             so you can read exactly what runs, or <a href={githubUrl}>host your own</a>.
           </p>
           <p class="note">

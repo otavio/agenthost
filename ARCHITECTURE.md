@@ -543,6 +543,42 @@ Three tiers, friction-zero default, founder-gated upgrades:
 - **Paid (founder enables via admin).** Custom username (rename, one `R2.head` collision
   check) and/or custom domain (a `_domains` mapping + one-time dashboard zone/Custom Domain).
 
+### 7.1 Invite-only accounts and the account surface
+
+This deployment turns off anonymous publishing. `POST /publish` without
+`Authorization` returns 401 and points at the account dashboard, and `POST /claim` is
+gone. Every account starts as an admin invite.
+
+- **Invite.** `POST /admin/api/users` with `{ email, plan? }` writes `_users/{username}`
+  with a generated username, the lowercased email, and the hash of a random token that
+  nobody ever sees. `verifyOwner` needs no special case for a fresh account. A second
+  invite for the same email returns 409.
+- **Identity.** `UserRecord.email` is the login identity. There is no email index. The
+  Worker finds a user by scanning `_users/` with `listUsersPage`, which reads the
+  records from `customMetadata` in one list call. Instances are expected to stay small
+  (tens of users). Each isolate caches hits for 60 s and re-checks the cached
+  username against the record, so a rename or email change falls back to a scan.
+  Misses are not cached, so a fresh invite works on the next request.
+- **Account surface.** `account.{APEX_HOST}` is routed in `index.ts` next to the admin
+  host and served by `account.ts`. A second Cloudflare Access application covers it
+  with the one-time PIN login and a policy that admits any email. The Worker verifies
+  the signed Access JWT against `ACCOUNT_ACCESS_AUD` (same team as the admin) and maps
+  the email claim to a user. An email without an invite gets 403 "not invited".
+  Missing config or a missing token also returns 403. In local dev, `DEV_ACCOUNT_EMAIL`
+  stands in for the JWT.
+- **Operations.** `/account/api/me` lists the user's sites and assets. `POST /token`
+  stores the hash of a new owner token and returns the token once, which invalidates
+  the previous one. The user can make a site public or private, give it a new share link,
+  or delete it with `deleteSite`. A new share link works like `/key/rotate`. The
+  Worker stores access keys only as hashes, so the dashboard cannot show an existing
+  link. Assets can be
+  deleted. Everything else under the host is the dashboard SPA from Static Assets
+  (`public/account/`).
+- **CSRF.** Hosted sites on `*.{APEX_HOST}` are same-site with
+  `account.{APEX_HOST}`, so SameSite cookies do not stop a hosted page from posting to
+  the dashboard with the user's Access cookie. The Worker rejects every non-GET/HEAD
+  request whose `Origin` is not `https://account.{APEX_HOST}`.
+
 ---
 
 ## 8. Admin

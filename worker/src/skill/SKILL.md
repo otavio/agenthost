@@ -67,7 +67,7 @@ Absolute (`/css/app.css`) and relative (`./css/app.css`) asset paths both resolv
 
 `shareUrl` carries the site's access key (`?k=…`) and logs the visitor in on first open. **The key is only returned on a site's first publish**: a redeploy returns a bare `shareUrl` that asks for a key. So record the link from the first publish of each `id` next to the deliverable, and give that same link again after redeploys. Pages already open in a browser reload themselves when you republish.
 
-If the link is lost, `POST /key/rotate` mints a new one and kills the old ones. To remove the gate completely, make the site public (see the reference).
+If the link is lost, `POST /key/rotate` mints a new one and kills the old ones. The human can do the same with "New share link" in the account dashboard. To remove the gate completely, make the site public (see the reference).
 
 ## Upload a downloadable asset
 
@@ -98,4 +98,4 @@ Hand over the `shareUrl` from **step 1**; completing doesn't repeat it.
 - Free: {{freeFilesPerSite}} files, {{freePerFile}} per file, {{freePerSite}} per site, {{freePerUser}} per account (sites and assets combined). Free sites are deleted {{freeRetention}} after their last publish, so republish to keep one alive.
 - `_gen` and `_meta` are reserved filenames.
 
-Public sites, key rotation, recovery email, deleting assets, every response field and error code: [references/http-api.md](references/http-api.md), also served at `https://{{apexHost}}/skill/references/http-api.md`.
+Public sites, key rotation, deleting assets, every response field and error code: [references/http-api.md](references/http-api.md), also served at `https://{{apexHost}}/skill/references/http-api.md`.
