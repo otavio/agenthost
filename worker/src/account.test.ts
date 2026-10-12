@@ -2,7 +2,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { handleAccount } from "./account";
 import { handleAdmin } from "./admin";
 import { handlePublish } from "./publish";
-import { getMeta, getUser, putAssetMeta } from "./storage";
+import worker from "./index";
+import { getAssetMeta, getDomain, getMeta, getUser, putAssetMeta } from "./storage";
 import { sha256Hex } from "./ids";
 import { testBucket } from "./test-bucket";
 import type { Env } from "./env";
@@ -20,8 +21,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// testBucket ignores onlyIf. Real R2 refuses a put with etagDoesNotMatch "*" when
+// the key exists (rename.miniflare.test.ts checks that against workerd).
+function putIfAbsent(f: ReturnType<typeof testBucket>) {
+  const put = f.put.getMockImplementation()!;
+  f.put.mockImplementation(async (key, body, opts) => {
+    if ((opts?.onlyIf as R2Conditional | undefined)?.etagDoesNotMatch === "*") {
+      if (f.records.has(key)) return null as never;
+      f.records.set(key, { body: "" });
+    }
+    return put(key, body, opts);
+  });
+}
+
 function fixture(overrides: Partial<Env> = {}) {
   const f = testBucket();
+  putIfAbsent(f);
   const env = {
     ...f.env,
     DEV_ACCOUNT_EMAIL: "ana@example.com",
@@ -45,7 +60,12 @@ function fixture(overrides: Partial<Env> = {}) {
     method: "POST", body: "# Home", headers: { authorization: `Bearer ${ownerToken}`, "content-type": "text/markdown" },
   }), env);
   const me = async () => (await account("/account/api/me")).json();
-  return { ...f, env, account, post, invite, token, publish, me };
+  const rename = (username: unknown, email = "ana@example.com") => handleAccount(new Request("https://account.example.com/account/api/username", {
+    method: "POST", body: JSON.stringify({ username }), headers: { "content-type": "application/json", origin: ORIGIN },
+  }), { ...env, DEV_ACCOUNT_EMAIL: email });
+  const visit = (url: string) => worker.fetch(new Request(url), env, { waitUntil: () => {} } as unknown as ExecutionContext);
+  const keysOf = (username: string) => [...f.records.keys()].filter((k) => k.split("/")[1] === username).sort();
+  return { ...f, env, account, post, invite, token, publish, me, rename, visit, keysOf };
 }
 
 describe("account access", () => {
@@ -245,5 +265,168 @@ describe("account dashboard API", () => {
     const res = await f.account("/account/api/asset?id=a1", { method: "DELETE", headers: { origin: ORIGIN } });
     expect(await res.json()).toEqual({ ok: true });
     expect([...f.records.keys()].filter((k) => k.includes(`/${username}/`))).toEqual([]);
+  });
+});
+
+describe("username change", () => {
+  beforeEach(() => {
+    vi.stubGlobal("caches", { default: { match: async () => undefined, put: async () => {} } });
+    vi.stubGlobal("HTMLRewriter", class { on() { return this; } transform(res: Response) { return res; } });
+  });
+
+  async function publishedAccount() {
+    const f = fixture();
+    const old = await f.invite("ana@example.com");
+    const token = await f.token();
+    expect((await f.publish(old, token, "docs")).status).toBe(200);
+    expect((await f.publish(old, token, "notes")).status).toBe(200);
+    await f.post("/account/api/site/public?id=docs", { public: true });
+    return { f, old, token };
+  }
+
+  it("moves published sites to the new host and frees the old one", async () => {
+    const { f, old } = await publishedAccount();
+    const res = await f.rename("anabanana");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, username: "anabanana", complete: true });
+
+    const moved = await f.visit("https://anabanana-docs.example.com/?raw");
+    expect(moved.status).toBe(200);
+    expect(await moved.text()).toBe("# Home");
+    expect((await f.visit(`https://${old}-docs.example.com/?raw`)).status).toBe(404);
+    expect(f.keysOf(old)).toEqual([]);
+    expect(f.keysOf("anabanana")).toEqual([
+      "_sites/anabanana/docs", "_sites/anabanana/notes", "_users/anabanana",
+      "sites/anabanana/docs/README.md", "sites/anabanana/notes/README.md",
+    ]);
+    const me = (await f.me()) as { username: string; sites: { url: string }[] };
+    expect(me.username).toBe("anabanana");
+    expect(me.sites.map((s) => s.url)).toEqual(["https://anabanana-docs.example.com/", "https://anabanana-notes.example.com/"]);
+  });
+
+  it("keeps the agent token, which then publishes only under the new username", async () => {
+    const { f, old, token } = await publishedAccount();
+    await f.rename("anabanana");
+    expect((await f.publish("anabanana", token, "docs")).status).toBe(200);
+    const stale = await f.publish(old, token, "docs");
+    expect(stale.status).toBe(403);
+    expect(await stale.json()).toEqual({ error: "invalid username or owner token" });
+  });
+
+  it("moves uploaded file metadata and leaves the blob in place", async () => {
+    const f = fixture();
+    const old = await f.invite("ana@example.com");
+    f.records.set(`assets/${old}/a1/blob`, { body: "bytes" });
+    const asset = {
+      id: "a1", username: old, name: "report.pdf", contentType: "application/pdf", bytes: 5,
+      objectKey: `assets/${old}/a1/blob`, keyHash: "x", public: false, status: "ready" as const, createdAt: NOW, lastDeployAt: NOW,
+    };
+    await putAssetMeta(f.bucket, old, "a1", asset);
+    await f.rename("anabanana");
+    expect(await getAssetMeta(f.bucket, "anabanana", "a1")).toEqual({ ...asset, username: "anabanana" });
+    expect(f.keysOf(old)).toEqual([`assets/${old}/a1/blob`]);
+    expect(((await f.me()) as { assets: { url: string }[] }).assets.map((a) => a.url)).toEqual(["https://example.com/a/anabanana/a1"]);
+  });
+
+  it("repoints the custom domain at the new username", async () => {
+    const { f, old } = await publishedAccount();
+    await handleAdmin(new Request("https://admin.example.com/admin/api/domain", {
+      method: "POST", body: JSON.stringify({ host: "docs.acme.test", username: old, siteId: "docs" }), headers: { "content-type": "application/json" },
+    }), f.env);
+    await f.rename("anabanana");
+    expect(await getDomain(f.bucket, "docs.acme.test")).toEqual({ username: "anabanana", siteId: "docs" });
+    expect(await (await f.visit("https://docs.acme.test/?raw")).text()).toBe("# Home");
+  });
+
+  it("lowercases and trims the requested name", async () => {
+    const f = fixture();
+    await f.invite("ana@example.com");
+    expect(await (await f.rename("  AnaBanana ")).json()).toEqual({ ok: true, username: "anabanana", complete: true });
+  });
+
+  it.each([["admin"], ["a"], ["ana-b"], ["a".repeat(31)], ["ana_b"], [42]])("rejects %j with 400", async (name) => {
+    const f = fixture();
+    const old = await f.invite("ana@example.com");
+    const res = await f.rename(name);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "username must be 2-30 lowercase letters or digits, and not reserved" });
+    expect(f.keysOf(old)).toEqual([`_users/${old}`]);
+  });
+
+  it("rejects the current username with 400", async () => {
+    const f = fixture();
+    const old = await f.invite("ana@example.com");
+    const res = await f.rename(old);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "that is already your username" });
+  });
+
+  it("refuses a name another user holds with 409 and changes nothing", async () => {
+    const { f, old } = await publishedAccount();
+    const bo = await f.invite("bo@example.com");
+    expect((await f.rename("taken", "bo@example.com")).status).toBe(200);
+    const before = new Map(f.records);
+    const res = await f.rename("taken");
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "username taken" });
+    expect(f.records).toEqual(before);
+    expect((await getUser(f.bucket, "taken"))!.email).toBe("bo@example.com");
+    expect(f.keysOf(old)).toContain(`_users/${old}`);
+    expect(f.keysOf(bo)).toEqual([]);
+  });
+
+  it("lets exactly one of two users racing for a name win", async () => {
+    const f = fixture();
+    await f.invite("ana@example.com");
+    await f.invite("bo@example.com");
+    const [ana, bo] = await Promise.all([f.rename("shared"), f.rename("shared", "bo@example.com")]);
+    expect([ana.status, bo.status].sort()).toEqual([200, 409]);
+    const winner = ana.status === 200 ? "ana@example.com" : "bo@example.com";
+    expect((await getUser(f.bucket, "shared"))!.email).toBe(winner);
+  });
+
+  it("moves a large account over several requests that each report progress", async () => {
+    const f = fixture();
+    const old = await f.invite("ana@example.com");
+    for (let i = 0; i < 20; i++) f.records.set(`sites/${old}/big/f${String(i).padStart(2, "0")}.txt`, { body: `file ${i}` });
+    f.json(`_sites/${old}/big`, { generation: 1, createdAt: NOW, lastDeployAt: NOW, bytes: 140, fileCount: 20, keyHash: null, public: true });
+
+    const first = await f.rename("anabanana");
+    expect(first.status).toBe(202);
+    expect(await first.json()).toEqual({ ok: true, username: "anabanana", complete: false });
+    const me = (await f.me()) as { username: string; renamedFrom?: string };
+    expect([me.username, me.renamedFrom]).toEqual(["anabanana", old]);
+    const elsewhere = await f.rename("other");
+    expect(elsewhere.status).toBe(409);
+    expect(await elsewhere.json()).toEqual({ error: "finish the rename to anabanana first" });
+
+    expect(await (await f.rename("anabanana")).json()).toEqual({ ok: true, username: "anabanana", complete: true });
+    expect(f.keysOf(old)).toEqual([]);
+    expect(f.keysOf("anabanana")).toHaveLength(22);
+    expect(await getUser(f.bucket, "anabanana")).not.toHaveProperty("renamedFrom");
+    expect(await (await f.visit("https://anabanana-big.example.com/f19.txt")).text()).toBe("file 19");
+  });
+
+  it("converges when a retry follows a request that died mid-copy", async () => {
+    const { f, old, token } = await publishedAccount();
+    f.del.mockRejectedValueOnce(new Error("subrequest limit"));
+    expect((await f.rename("anabanana")).status).toBe(500);
+    expect((await getUser(f.bucket, "anabanana"))!.renamedFrom).toBe(old);
+    expect((await getUser(f.bucket, old))!.email).toBe("ana@example.com");
+    expect(((await f.me()) as { username: string }).username).toBe("anabanana");
+
+    expect(await (await f.rename("anabanana")).json()).toEqual({ ok: true, username: "anabanana", complete: true });
+    expect(f.keysOf(old)).toEqual([]);
+    expect(await (await f.visit("https://anabanana-docs.example.com/?raw")).text()).toBe("# Home");
+    expect((await f.publish("anabanana", token, "docs")).status).toBe(200);
+  });
+
+  it("finishes a rename whose source record was already deleted", async () => {
+    const { f, old } = await publishedAccount();
+    const user = (await getUser(f.bucket, old))!;
+    f.json(`_users/anabanana`, { ...user, renamedFrom: old }, true);
+    f.records.delete(`_users/${old}`);
+    expect(await (await f.rename("anabanana")).json()).toEqual({ ok: true, username: "anabanana", complete: true });
+    expect(await getUser(f.bucket, "anabanana")).toEqual(user);
   });
 });
