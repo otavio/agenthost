@@ -8,6 +8,7 @@
 import type { Env } from "./env";
 import { apexApp } from "./apex";
 import { handleAdmin } from "./admin";
+import { handleAccount } from "./account";
 import { handleSite } from "./serve";
 import { getDomain, type DomainRecord } from "./storage";
 import { runRetentionSweep } from "./sweep";
@@ -44,6 +45,7 @@ export default {
     const apex = env.APEX_HOST.toLowerCase();
 
     if (host === `admin.${apex}`) return handleAdmin(req, env);
+    if (host === `account.${apex}`) return handleAccount(req, env);
 
     // Control-plane endpoints; unmatched paths fall through to the landing page
     // via the app's notFound handler. (resolveHost maps bare localhost → apex in
