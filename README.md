@@ -49,6 +49,31 @@ so any skill installer can pick it up straight from this repo:
 
 Replace `<owner>/<repo>` with this repository (e.g. `you/agenthost`).
 
+## Install the development skills
+
+The [p3-stack](https://github.com/Tr1Fecta-7/p3-stack) development skills are in
+`skills/`, alongside the agenthost skill. The source revision, upstream
+documentation, and license are in `docs/p3-stack/`.
+
+```bash
+./install.sh --project . --claude
+```
+
+This runs the p3-stack install script with `--project` and `--claude`.
+The committed `.agents/skills/` and `.claude/skills/` links load the agenthost
+skill and all 53 p3-stack skills for Codex and Claude Code. The installer creates
+relative links so the checkout can move to a different path.
+The installer preserves existing directories with the same names.
+
+To install the same skills for all projects:
+
+```bash
+./install.sh --claude
+```
+
+The skills will be available on the next turn. Run `/setup-p3` to configure
+provider and model roles, then use `/p3-mode` to select a workflow.
+
 ## How it works
 
 - **One Worker, one R2 bucket — nothing else.** R2's strong read-after-write

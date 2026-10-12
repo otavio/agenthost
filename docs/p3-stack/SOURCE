@@ -1,0 +1,7 @@
+repository=https://github.com/Tr1Fecta-7/p3-stack
+commit=45332b72fb4a03a33cf4f3748c0594ee4c7db582
+
+Skills and their helper scripts are imported unchanged.
+The installer uses relative links for portable checkouts.
+The upstream sync script points to the retained changelog location.
+The upstream documentation and MIT license are retained in this directory.
