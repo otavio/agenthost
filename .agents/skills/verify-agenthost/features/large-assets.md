@@ -17,7 +17,7 @@ An existing account uploads a large file in three calls: create (`POST /asset`),
 
 Preconditions:
 
-- An account exists (`U` and `TOKEN` from any publish).
+- An invited account exists, with `U` and `TOKEN` from [account-dashboard](./account-dashboard.md).
 - Real, bucket-scoped R2 S3 credentials are available. **The default verification launch does not load them** (it skips `worker/.dev.vars`), so the full journey cannot pass locally as launched.
 
 - **Validation.** Run `curl -s -w ' %{http_code}' -X POST -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' "$BASE/asset?username=$U" -d '{"name":"","bytes":10}'`. It prints `{"error":"valid file name required (max 180 characters)"} 400`.

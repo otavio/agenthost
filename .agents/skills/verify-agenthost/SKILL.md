@@ -1,15 +1,16 @@
 ---
 name: verify-agenthost
-description: Launch an isolated local agenthost (Cloudflare Worker under wrangler dev with Miniflare R2) and prove behavior the way a user sees it, through the publish API with curl, hosted sites and share links in the preview browser, and the admin console. Use it to reproduce a bug, to confirm that a change to worker/, landing/ or admin/ works in the real app, or to capture evidence for a PR.
+description: Launch an isolated local agenthost (Cloudflare Worker under wrangler dev with Miniflare R2) and prove behavior the way a user sees it, through the publish API with curl, hosted sites and share links in the preview browser, the admin console and the account dashboard. Use it to reproduce a bug, to confirm that a change to worker/, landing/, admin/ or account/ works in the real app, or to capture evidence for a PR.
 ---
 
 # Verify agenthost
 
 agenthost is one Cloudflare Worker that routes by `Host`:
 
-- **Apex (control plane):** the landing page, `POST /publish`, the owner API (`/key/*`, `/claim`, `/asset`) and `/llms.txt`.
+- **Apex (control plane):** the landing page, `POST /publish`, the owner API (`/key/*`, `/asset`) and `/llms.txt`. Publishing is invite-only, so every publish needs an owner token.
 - **Hosted sites:** served at `{username}-{siteId}.{apex}`, private behind an access key unless made public.
-- **Admin console:** a Svelte SPA plus `/admin/api/*` at `admin.{apex}`.
+- **Admin console:** a Svelte SPA plus `/admin/api/*` at `admin.{apex}`. It invites users by email.
+- **Account dashboard:** a Svelte SPA plus `/account/api/*` at `account.{apex}`. An invited user generates an agent token and manages their sites there. Locally the signed-in email is `DEV_ACCOUNT_EMAIL`, which `launch.sh` sets from `ACCOUNT_EMAIL` (default `owner@example.com`).
 
 Users touch it two ways. Agents publish with `curl`, and people open share links in a browser. Drive both.
 
@@ -66,7 +67,9 @@ Any `FAIL` means the instance isn't worth driving. Run cleanup, then launch agai
 Core calls, with real routes from `worker/src/apex.ts` and `worker/src/admin.ts`:
 
 ```bash
-printf '<!doctype html><h1>hi</h1>' | curl -s --data-binary @- "$BASE/publish?id=demo" > pub.json   # new anonymous account
+curl -s -H "Host: admin.localhost" -H 'content-type: application/json' -d '{"email":"owner@example.com"}' "$BASE/admin/api/users"  # invite; set U to the returned username
+TOKEN=$(curl -s -X POST -H "Host: account.localhost" -H "Origin: http://account.localhost:$PORT" "$BASE/account/api/token" | jq -r .token)
+printf '<!doctype html><h1>hi</h1>' | curl -s --data-binary @- -H "Authorization: Bearer $TOKEN" "$BASE/publish?id=demo&username=$U" > pub.json
 tar cf - -C ./dir . | curl -s --data-binary @- -H "Authorization: Bearer $TOKEN" "$BASE/publish?id=docs&username=$U"  # redeploy
 curl -s -X POST -H "Authorization: Bearer $TOKEN" "$BASE/key/rotate?username=$U&id=demo"
 curl -s -X POST -H "Authorization: Bearer $TOKEN" "$BASE/key/public?username=$U&id=demo" -d '{"public":true}'
