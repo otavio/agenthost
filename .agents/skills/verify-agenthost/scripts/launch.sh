@@ -3,6 +3,7 @@
 # Usage: launch.sh [RUN_DIR]        (default: /tmp/verify-agenthost/<timestamp>)
 # Env:   SKIP_BUILD=1  reuse existing public/ and worker/src/client/gen/
 #        APEX=<host>   apex host (default: localhost, so sites are *.localhost)
+#        ACCOUNT_EMAIL=<email>  signed-in email on account.<apex> (default: owner@example.com)
 # Prints RUN_DIR on the last line. RUN_DIR/env holds PORT, BASE, APEX, PID.
 set -euo pipefail
 
@@ -39,6 +40,7 @@ setsid bash -c 'echo $$ > "$1/pid"; shift; exec "$@"' _ "$RUN_DIR" \
   direnv exec "$ROOT" pnpm exec wrangler dev --local -c "$RUN_DIR/wrangler.json" \
   --ip 127.0.0.1 --port "$PORT" --inspector-port "$INSPECT" \
   --persist-to "$RUN_DIR/state" --var "APEX_HOST:$APEX" --var DEV_MODE:1 \
+  --var "DEV_ACCOUNT_EMAIL:${ACCOUNT_EMAIL:-owner@example.com}" \
   > "$RUN_DIR/wrangler.log" 2>&1 < /dev/null &
 for _ in $(seq 1 50); do [[ -s "$RUN_DIR/pid" ]] && break; sleep 0.1; done
 PID="$(cat "$RUN_DIR/pid")"
