@@ -2,3 +2,4 @@ packages:
   - worker
   - landing
   - admin
+  - account
