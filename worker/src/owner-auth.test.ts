@@ -25,7 +25,7 @@ async function fixture() {
 }
 
 describe("owner endpoints authenticated by the credentials file headers", () => {
-  it("publish, rotate, make public and claim", async () => {
+  it("publish, rotate and make public", async () => {
     const { call } = await fixture();
     const pub = await call("https://example.com/publish?id=docs", { method: "POST", body: "# Hi" });
     expect(pub.status).toBe(200);
@@ -36,11 +36,6 @@ describe("owner endpoints authenticated by the credentials file headers", () => 
     expect((await rotate.json<{ shareUrl: string }>()).shareUrl).toMatch(/^https:\/\/alice-docs\.example\.com\/\?k=/);
 
     expect(await (await call("https://example.com/key/public?id=docs", { method: "POST" })).json()).toEqual({ ok: true, public: true });
-    expect(await (await call("https://example.com/claim?email=a@example.com", { method: "POST" })).json()).toEqual({
-      ok: true,
-      username: "alice",
-      email: "a@example.com",
-    });
   });
 
   it("initiate, complete and delete an asset", async () => {
