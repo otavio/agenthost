@@ -4,6 +4,7 @@
 // make this lie.
 
 import { ASSET_LIMITS, LIMITS, formatBytes } from "./config";
+import { credentialsCommand, credentialsFile, writeCredentialsCommand } from "./skill";
 
 const free = LIMITS.free;
 
@@ -34,11 +35,23 @@ tar cf - -C ./dist . | curl -s --data-binary @- \\
   "username": "cleverotter4f2"                                           // your account name (auto-generated, no hyphens)
 }
 
-Publishing again with the same id replaces the content at the same URL.
+## Keep the account (one per host, reused across sessions)
+Save username and ownerToken from the first response in the curl config ${credentialsFile(apexHost)},
+in your home directory and never in a project. Put them in place of OWNER_TOKEN and USERNAME,
+and don't echo the token:
+${writeCredentialsCommand(apexHost)}
+A human who already has an account runs this instead; it prompts for both, with the token hidden:
+${credentialsCommand(apexHost)}
+Check for it with \`test -f ${credentialsFile(apexHost)}\` before minting another account.
 
-## Large downloadable assets
-Three calls, all with -H 'Authorization: Bearer <ownerToken>' except the PUT:
-1. POST https://${apexHost}/asset?username=<username> with JSON
+## Redeploy the SAME url (needs the account)
+tar cf - -C ./dist . | curl -s -K ${credentialsFile(apexHost)} --data-binary @- \\
+  'https://${apexHost}/publish?id=myblog'
+
+## Large downloadable assets (existing account required)
+Three calls, all with -K ${credentialsFile(apexHost)} except the PUT, which goes to R2
+and must not carry your token:
+1. POST https://${apexHost}/asset with JSON
    {"name":"demo.mp4","bytes":<exact size>,"contentType":"video/mp4"}
    → uploadUrl, uploadHeaders, completeUrl, shareUrl (the shareUrl only comes back here)
 2. curl --upload-file demo.mp4 -H '<each uploadHeaders entry>' '<uploadUrl>'   (within 15 min)
