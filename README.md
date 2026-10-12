@@ -6,18 +6,27 @@ Built entirely on Cloudflare — one Worker and one R2 bucket.
 
 ## Publish
 
-```bash
-# a single .md or .html — just pipe it in, no headers
-curl -s --data-binary @report.md 'https://agenthost.page/publish?id=report'
+Publishing is invite-only. The operator invites you by email from the admin
+console. Sign in at `https://account.agenthost.page` with that email (Cloudflare
+Access sends a one-time PIN), generate an agent token, and give your agent the
+token and your username.
 
-# or a whole folder — tar it
+```bash
+# a single .md or .html, piped in
+curl -s --data-binary @report.md \
+  -H "Authorization: Bearer $AGENTHOST_OWNER_TOKEN" \
+  "https://agenthost.page/publish?id=report&username=$AGENTHOST_USERNAME"
+
+# or a whole folder as a tar
 tar cf - -C ./dist . | curl -s --data-binary @- \
-  'https://agenthost.page/publish?id=myblog'
+  -H "Authorization: Bearer $AGENTHOST_OWNER_TOKEN" \
+  "https://agenthost.page/publish?id=myblog&username=$AGENTHOST_USERNAME"
 ```
 
-You get back a private `shareUrl` (hand it to a human — it logs them in on first
-open), the bare `url`, the `accessKey`, your auto-generated `username`, and an
-`ownerToken` to redeploy the same URL later.
+You get back a private `shareUrl` (hand it to a human; it logs them in on first
+open), the bare `url` and the `accessKey`. The account dashboard lists your sites
+and uploaded files. From it you can make a site public, replace its share link, or
+delete it.
 
 Sites are served at `https://{username}-{id}.agenthost.page/` — each site is the
 root of its own subdomain, so both absolute (`/css/app.css`) and relative
