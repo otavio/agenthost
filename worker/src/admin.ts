@@ -27,6 +27,7 @@ import {
 } from "./storage";
 import { isValidUsername } from "./ids";
 import { customDomainSetup } from "./domains";
+import { createUser } from "./invites";
 
 const api = new Hono<{ Bindings: Env }>();
 
@@ -46,6 +47,8 @@ api.get("/users", async (c) => {
   }));
   return c.json({ users, cursor: page.cursor ?? null });
 });
+
+api.post("/users", createUser);
 
 api.get("/sites", async (c) => {
   const username = c.req.query("username");

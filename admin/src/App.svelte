@@ -12,6 +12,8 @@
   let paging = $state(false);
   let error = $state("");
   let toast = $state("");
+  let inviteEmail = $state("");
+  let invitePlan = $state("free");
 
   async function api(path, opts) {
     const res = await fetch(API + path, opts);
@@ -87,6 +89,20 @@
     }
   }
 
+  async function invite(e) {
+    e.preventDefault();
+    try {
+      const d = await api("/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: inviteEmail, plan: invitePlan }) });
+      inviteEmail = "";
+      flash(`invited ${d.email} as ${d.username}`);
+      await loadUsers();
+      const u = users.find((x) => x.username === d.username);
+      if (u) selectUser(u);
+    } catch (e) {
+      error = e.message;
+    }
+  }
+
   async function rename(u) {
     const to = prompt(`Rename ${u.username} to:`);
     if (!to) return;
@@ -154,6 +170,11 @@
 <div class="layout">
   <section class="panel">
     <h2>Users <span class="count">{users.length}</span></h2>
+    <form class="invite" onsubmit={invite}>
+      <input type="email" placeholder="email to invite" required bind:value={inviteEmail} />
+      <select bind:value={invitePlan}><option value="free">free</option><option value="paid">paid</option></select>
+      <button>Invite</button>
+    </form>
     {#if loading}
       <p class="muted">Loading…</p>
     {:else if users.length === 0}
@@ -278,6 +299,9 @@
   .pub { font-size: 11px; color: var(--green); margin-left: 6px; }
   .tomb { font-size: 11px; color: var(--red); margin-left: 6px; }
   .muted { color: var(--muted); }
+  .invite { display: flex; gap: 6px; margin-bottom: 14px; }
+  .invite input, .invite select { background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; font-size: 13px; min-width: 0; }
+  .invite input { flex: 1; }
   .error { background: rgba(255, 107, 107, .12); color: var(--red); padding: 10px 28px; }
   .toast { position: fixed; bottom: 20px; right: 20px; background: var(--green); color: #06231a; padding: 11px 18px; border-radius: 10px; font-weight: 600; box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
   @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
