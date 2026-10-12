@@ -122,7 +122,9 @@ direnv exec . pnpm setup:dev
 
 The shell provides Node.js 24, pnpm 10, Git, curl, jq, and format and lint tools.
 The flake uses [red-tape](https://github.com/phaer/red-tape) to load the shell
-and formatter from `nix/`. Run `nix fmt` to format the Nix files.
+and formatter from `nix/`. Run `nix fmt` to format the Nix files with
+[Pedantix](https://github.com/Swarsel/pedantix). Run `nix flake check` to verify
+their formatting. Pedantix is also available in the development shell.
 The setup command installs locked dependencies and creates `worker/.dev.vars`
 from the example if the file does not exist. Existing local settings are kept.
 
