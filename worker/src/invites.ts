@@ -13,15 +13,21 @@ export function normalizeEmail(raw: unknown): string | null {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email : null;
 }
 
+// Mid-rename, the source and target records share the email. The target,
+// marked renamedFrom, wins so every request sees the same account.
 async function scanForEmail(b: R2Bucket, email: string): Promise<string | null> {
+  let found: string | null = null;
   let cursor: string | undefined;
   do {
     const page = await listUsersPage(b, cursor);
-    const hit = page.items.find(({ user }) => user.email === email);
-    if (hit) return hit.username;
+    for (const { username, user } of page.items) {
+      if (user.email !== email) continue;
+      if (user.renamedFrom) return username;
+      found ??= username;
+    }
     cursor = page.cursor;
   } while (cursor);
-  return null;
+  return found;
 }
 
 // Only hits are cached, because a miss must not lock a just-invited user out for the
@@ -30,9 +36,12 @@ async function scanForEmail(b: R2Bucket, email: string): Promise<string | null> 
 const EMAIL_CACHE_TTL_MS = 60_000;
 const emailCache = new Map<string, { username: string; expires: number }>();
 
-export async function userForEmail(b: R2Bucket, email: string): Promise<{ username: string; user: UserRecord } | null> {
+// Writes pass fresh. A cached hit can name the source of an unfinished rename,
+// and a write there is lost when the rename deletes it. A fresh lookup also
+// drops the entry, so the next read sees the rename target.
+export async function userForEmail(b: R2Bucket, email: string, fresh = false): Promise<{ username: string; user: UserRecord } | null> {
   const hit = emailCache.get(email);
-  if (hit && hit.expires > Date.now()) {
+  if (!fresh && hit && hit.expires > Date.now()) {
     const user = await getUser(b, hit.username);
     if (user?.email === email) return { username: hit.username, user };
   }
@@ -40,7 +49,7 @@ export async function userForEmail(b: R2Bucket, email: string): Promise<{ userna
   const username = await scanForEmail(b, email);
   const user = username ? await getUser(b, username) : null;
   if (!username || !user) return null;
-  emailCache.set(email, { username, expires: Date.now() + EMAIL_CACHE_TTL_MS });
+  if (!fresh) emailCache.set(email, { username, expires: Date.now() + EMAIL_CACHE_TTL_MS });
   return { username, user };
 }
 
