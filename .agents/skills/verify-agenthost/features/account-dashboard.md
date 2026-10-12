@@ -8,6 +8,7 @@ Publishing is invite-only. The operator invites an email from the admin console.
 - `account-token` generates an agent token, shown once with a publish command. The previous token stops working.
 - `account-sites` lists the user's sites with a public toggle, "New share link" and delete.
 - `account-files` lists uploaded files with delete.
+- `account-rename` changes the username from the token card. Sites, asset metadata and a custom-domain mapping move to the new name, and a name in use returns 409.
 - `account-guard` answers 403 for an email without an invite and for writes from any other origin.
 
 ## How to get to it (user POV)
@@ -29,6 +30,7 @@ Preconditions:
 - **Public toggle.** Click the row's `public` checkbox. `curl -s -o /dev/null -w '%{http_code}' -H "Host: $U-report.localhost" "$BASE/"` prints `200`.
 - **New share link.** Click `New share link` and accept the confirm. The new link appears under the row and the checkbox clears. The bare URL and the old `?k=` print `401`, and the new `?k=` prints `302`.
 - **Replace the token.** Generate another token. A publish with the old one returns 403 `invalid username or owner token`, and the new one returns 200.
+- **Change the username.** Click `Change username`, type a new name, click `Change` and accept the confirm. The header shows the new name. `$NEW-<site>.localhost` prints `200` and `$U-<site>.localhost` prints `404`. A publish with the same token and `username=$U` returns 403, and with `username=$NEW` it returns 200. A name another user holds shows `username taken`. To see the batched move, publish a site with more than 12 files and POST `/account/api/username` with curl. Each request answers 202 with `"complete":false` until the last one answers 200.
 - **Delete.** Click `Delete` and accept. `/account/api/me` lists no sites, and the site host returns 404.
 
 ## Gotchas
