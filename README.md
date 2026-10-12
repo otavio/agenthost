@@ -61,6 +61,27 @@ The skill is named after the host (`agenthost-page`); set `SKILL_NAME` in
 `~/.claude/skills/` for Codex and other agents. A self-hosted instance serves its
 own copy at `https://<your-domain>/skill/`.
 
+## Development skills
+
+The [p3-stack](https://github.com/Tr1Fecta-7/p3-stack) development skills come
+from the `.agents/vendor/p3-stack` submodule. Each skill is linked into
+`.agents/skills/` for Codex and other agents, and into `.claude/skills/` for
+Claude Code. Fetch the submodule after cloning, or the links point nowhere:
+
+```bash
+git submodule update --init
+```
+
+To move to a newer p3-stack, update the submodule, relink, and commit both:
+
+```bash
+git submodule update --remote .agents/vendor/p3-stack
+scripts/link-p3-skills.sh
+```
+
+Run `/setup-p3` to configure provider and model roles, then use `/p3-mode` to
+select a workflow.
+
 ## How it works
 
 - **One Worker, one R2 bucket — nothing else.** R2's strong read-after-write
