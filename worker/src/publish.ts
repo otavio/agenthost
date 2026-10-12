@@ -270,12 +270,7 @@ export async function handlePublish(req: Request, env: Env): Promise<Response> {
     plan = owner.ctx.user.plan;
     account = owner.ctx.user;
   } else {
-    // Anonymous → always a brand-new account (owned sites require the token).
-    do {
-      username = generateUsername();
-    } while (await env.SITES.head(userKey(username)));
-    ownerToken = generateOwnerToken();
-    isNewUser = true;
+    return json({ error: `publishing is invite-only: sign in at https://account.${apex} to get an agent token` }, 401);
   }
 
   const siteId = sanitizeSiteId(url.searchParams.get("id") ?? req.headers.get("x-agenthost-site")) ?? DEFAULT_SITE_ID;
