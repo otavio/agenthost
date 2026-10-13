@@ -9,7 +9,7 @@ Two secrets:
 - **`ownerToken`**, the account credential. Publishing is invite-only. The human signs in at `https://account.{{apexHost}}`, generates the token there (shown once), and saves it on the agent's machine with the command shown next to it. Send it as `Authorization: Bearer <token>` on every publish and owner endpoint. Only its SHA-256 is stored. Generating a new one invalidates the old one.
 - **`accessKey`**, the per-site password gating the private site. Returned once, by a site's first publish. Embedded in `shareUrl` as `?k=<accessKey>`. Persists across redeploys.
 
-Authenticated requests also need the account `username`, as `?username=<name>` or the `x-agenthost-user` header. The skill keeps both headers in the curl config `{{credentialsFile}}` and passes it with `-K`, as every example below does. See [SKILL.md](https://{{apexHost}}/skill/SKILL.md) for how that file gets written.
+Authenticated requests also need the account `username`, as `?username=<name>` or the `x-agenthost-user` header. The skill keeps both headers in the curl config `{{credentialsFile}}` and passes it with `-K`, as every example below does. See [SKILL.md](../SKILL.md) for how that file gets written.
 
 ## POST /publish
 
@@ -28,7 +28,7 @@ Body is either a **tar** of a directory or a **single raw file**. No `Content-Ty
 - Anything else → one document: Markdown as `README.md`, HTML as `index.html`. Both serve at `/`.
 - Any other file type → send `?file=<name>`; the extension sets the served `Content-Type`.
 
-Single-file publish replaces the whole site with that one file. `id` defaults to `site` when omitted. A zip body is rejected with 400; send a tar. Curl examples are in [SKILL.md](https://{{apexHost}}/skill/SKILL.md).
+Single-file publish replaces the whole site with that one file. `id` defaults to `site` when omitted. A zip body is rejected with 400; send a tar. Curl examples are in [SKILL.md](../SKILL.md).
 
 ### Response (200)
 

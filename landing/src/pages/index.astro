@@ -5,7 +5,7 @@ import SeoHead from "../components/SeoHead.astro";
 const host = Astro.site!.host;
 const ask = `Publish this with ${host} and send me the private link.`;
 const installCmd = `curl -fsSL https://${host}/skill/install.sh | sh`;
-const installAsk = `Install the agent skill at https://${host}/skill/SKILL.md so you can publish with ${host}.`;
+const installAsk = `Install the agent skill at https://${host}/skill/SKILL.md, following its install section, so you can publish with ${host}.`;
 
 // Source repo, configurable at build time: `PUBLIC_GITHUB_URL=https://github.com/you/agenthost`.
 const githubUrl = import.meta.env.PUBLIC_GITHUB_URL ?? "https://github.com/ceifa/agenthost";
