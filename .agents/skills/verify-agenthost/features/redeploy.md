@@ -12,7 +12,7 @@ An owner republishes to the same address with the `ownerToken`. The site's conte
 
 ## How to get to it (user POV)
 
-- `tar cf - -C <dir> . | curl --data-binary @- -H 'Authorization: Bearer <ownerToken>' "$BASE/publish?id=<site>&username=<username>"` (from `/llms.txt`, "Redeploy the SAME url").
+- `tar cf - -C <dir> . | curl -s -K ~/.config/agenthost/<apex>.curlrc --data-binary @- "$BASE/publish?id=<site>"` (from `/llms.txt`, "Publish"). The curl config sends the same `Authorization: Bearer` and `x-agenthost-user` headers as the explicit form below.
 
 ## Driving it with `curl`
 

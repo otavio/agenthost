@@ -1,12 +1,11 @@
 <script>
   const API = "/account/api";
   const apexHost = location.host.replace(/^account\./, "");
-  const apexBase = `${location.protocol}//${apexHost}`;
 
   let me = $state(null);
   let error = $state("");
   let toast = $state("");
-  let token = $state("");
+  let issued = $state(null);
   let links = $state({});
   let renaming = $state(false);
   let newName = $state("");
@@ -53,9 +52,10 @@
 
   const changeUsername = () => {
     const name = newName.trim().toLowerCase();
-    if (!confirm(`Change your username to ${name}?\n\nEvery page's address changes to ${name}-<site>.${apexHost}, and old links stop working. Your agent must publish with the new username. The agent token stays the same.`)) return;
+    if (!confirm(`Change your username to ${name}?\n\nEvery page's address changes to ${name}-<site>.${apexHost}, and old links stop working. Your agent's saved token file still names the old username, so generate a new agent token afterwards and run its save command again.`)) return;
     run(async () => {
       await moveTo(name);
+      issued = null;
       renaming = false;
       newName = "";
       flash(`username is now ${name}`);
@@ -69,12 +69,8 @@
 
   const generateToken = () => {
     if (!confirm("Generate a new agent token? Agents using the current token stop working.")) return;
-    run(async () => { token = (await post("/token")).token; });
+    run(async () => { issued = await post("/token"); });
   };
-
-  const snippet = $derived(me && token
-    ? `curl -s --data-binary @report.md \\\n  -H 'Authorization: Bearer ${token}' \\\n  '${apexBase}/publish?username=${me.username}&id=report'`
-    : "");
 
   const setPublic = (s, value) => run(async () => {
     await post(`/site/public?id=${encodeURIComponent(s.id)}`, { public: value });
@@ -133,13 +129,13 @@
   <main>
     <section class="panel">
       <h2>Agent token</h2>
-      {#if token}
+      {#if issued}
         <p class="muted">Copy it now. It is not shown again.</p>
-        <div class="secret"><code>{token}</code><button class="ghost sm" onclick={() => copy(token)}>Copy</button></div>
-        <p class="muted">Give your agent this command to publish a page:</p>
-        <div class="secret"><pre>{snippet}</pre><button class="ghost sm" onclick={() => copy(snippet)}>Copy</button></div>
+        <div class="secret"><code>{issued.token}</code><button class="ghost sm" onclick={() => copy(issued.token)}>Copy</button></div>
+        <p class="muted">Run this in a terminal on the machine your agent uses and paste the token at the prompt. It saves to <code>{issued.credentialsFile}</code>.</p>
+        <div class="secret"><pre>{issued.saveCommand}</pre><button class="ghost sm" onclick={() => copy(issued.saveCommand)}>Copy</button></div>
       {:else}
-        <p class="muted">Your agent publishes with this token and your username, <span class="name">{me.username}</span>.</p>
+        <p class="muted">Your agent publishes as <span class="name">{me.username}</span>. Generate a token to get the command that saves it on your agent's machine.</p>
       {/if}
       <button onclick={generateToken}>Generate agent token</button>
       <div class="rename">

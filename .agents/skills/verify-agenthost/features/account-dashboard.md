@@ -5,7 +5,8 @@ Publishing is invite-only. The operator invites an email from the admin console.
 ## Sub-features
 
 - `account-invite` creates a user from the admin console or `POST /admin/api/users`. A second invite for the same email returns 409.
-- `account-token` generates an agent token, shown once with a publish command. The previous token stops working.
+- `account-token` generates an agent token, shown once with a save command that prompts for it and writes `~/.config/agenthost/{apex}.curlrc` (mode 600) for `curl -K`. The previous token stops working.
+- `account-skill` serves the agenthost skill at `$BASE/skill/SKILL.md`, naming the apex and that credentials file.
 - `account-sites` lists the user's sites with a public toggle, "New share link" and delete.
 - `account-files` lists uploaded files with delete.
 - `account-rename` changes the username from the token card. Sites, asset metadata and a custom-domain mapping move to the new name, and a name in use returns 409.
@@ -25,8 +26,9 @@ Preconditions:
 
 - **Not invited yet.** `curl -s -w ' %{http_code}' -H "Host: account.localhost" "$BASE/account/api/me"` prints `{"error":"not invited"} 403`.
 - **Invite.** `curl -s -H "Host: admin.localhost" -H 'content-type: application/json' -d '{"email":"owner@example.com"}' "$BASE/admin/api/users"` returns 201 with `username`. Set `U` to it. Repeating the call returns 409 `email already invited`.
-- **Generate a token.** `preview_open {url: "http://account.localhost:$PORT/", open: false, reuseExistingTab: false}`, click `role=button[name='Generate agent token']`, accept the confirm with `preview_dialog {accept: true}`. The page shows the token and a curl command with `Authorization: Bearer` and `?username=$U`. Set `TOKEN` from the snapshot.
-- **Publish with it.** `printf '# Report' | curl -s --data-binary @- -H "Authorization: Bearer $TOKEN" "$BASE/publish?id=report&username=$U"` returns 200. Reload the dashboard. The `Pages and docs` table has a `report` row.
+- **Generate a token.** `preview_open {url: "http://account.localhost:$PORT/", open: false, reuseExistingTab: false}`, click `role=button[name='Generate agent token']`, accept the confirm with `preview_dialog {accept: true}`. The page shows the token and a save command that names `$U` and holds no token. Set `TOKEN` and `SAVE` from the snapshot.
+- **Save it.** `export HOME=$(mktemp -d) && printf '%s\n' "$TOKEN" | sh -c "$SAVE"`. It prompts for the token with echo off. To see that, run it in a pty instead (`script -qc "sh -c '$SAVE'"`) and paste the token. `stat -c %a "$HOME/.config/agenthost/localhost.curlrc"` prints `600`, and the file holds two lines, `header = "Authorization: Bearer $TOKEN"` and `header = "x-agenthost-user: $U"`.
+- **Publish with it.** `printf '# Report' | curl -s -K "$HOME/.config/agenthost/localhost.curlrc" --data-binary @- "$BASE/publish?id=report"` returns 200. Reload the dashboard. The `Pages and docs` table has a `report` row.
 - **Public toggle.** Click the row's `public` checkbox. `curl -s -o /dev/null -w '%{http_code}' -H "Host: $U-report.localhost" "$BASE/"` prints `200`.
 - **New share link.** Click `New share link` and accept the confirm. The new link appears under the row and the checkbox clears. The bare URL and the old `?k=` print `401`, and the new `?k=` prints `302`.
 - **Replace the token.** Generate another token. A publish with the old one returns 403 `invalid username or owner token`, and the new one returns 200.
