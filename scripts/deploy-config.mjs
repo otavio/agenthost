@@ -1,8 +1,3 @@
-// Operator-specific deploy settings. worker/wrangler.jsonc holds the defaults;
-// a git-ignored deploy.env at the repo root (see deploy.env.example) overrides
-// the account, domain and bucket without editing tracked files. Environment
-// variables win over deploy.env. scripts/wrangler.mjs runs Wrangler against
-// the result.
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -11,7 +6,7 @@ const deployEnv = new URL("deploy.env", root);
 const wranglerConfig = new URL("worker/wrangler.jsonc", root);
 const generatedConfig = new URL("worker/wrangler.deploy.json", root);
 
-const OVERRIDES = ["CLOUDFLARE_ACCOUNT_ID", "APEX_HOST", "ZONE_NAME", "R2_BUCKET_NAME"];
+const OVERRIDES = ["CLOUDFLARE_ACCOUNT_ID", "APEX_HOST", "ZONE_NAME", "R2_BUCKET_NAME", "SKILL_NAME"];
 
 let loaded = false;
 function loadDeployEnv() {
@@ -80,6 +75,7 @@ export function writeWranglerConfig() {
     }
     config.vars.R2_BUCKET_NAME = env.R2_BUCKET_NAME;
   }
+  if (env.SKILL_NAME) config.vars.SKILL_NAME = env.SKILL_NAME;
 
   writeFileSync(generatedConfig, `${JSON.stringify(config, null, 2)}\n`);
   return fileURLToPath(generatedConfig);
