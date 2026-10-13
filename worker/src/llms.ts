@@ -57,6 +57,20 @@ The file goes straight from the client to R2. Opening the shareUrl shows a Downl
 button whose bytes also come directly from R2.
 Free max: ${formatBytes(ASSET_LIMITS.free.perAsset)} per asset. Paid max: ${formatBytes(ASSET_LIMITS.paid.perAsset)} per asset.
 
+## Find or regenerate a share link
+Only a hash of each access key is stored, so a lost key cannot be read back. List
+everything the account owns. Listing changes nothing and returns bare URLs, never keys:
+curl -s -K ${credentialsFile(apexHost)} 'https://${apexHost}/shares'
+When the human asks for a new link, match its hostname to sites[].url, or its origin
+and path to assets[].url. Ignore query parameters and fragments. Regenerate that
+one item. A site's key covers every page. Their request is the permission:
+curl -s -K ${credentialsFile(apexHost)} -X POST 'https://${apexHost}/key/rotate?id=<siteId>'
+curl -s -K ${credentialsFile(apexHost)} -X POST 'https://${apexHost}/a/<username>/<assetId>/rotate'
+→ {"ok":true,"accessKey":"<new key>","public":false,"shareUrl":"<hand THIS over>"}
+The item becomes private, and its old links and cookies stop working. Never rotate for a
+request that only lists shares or asks for a link. Do not enable automatic rotate retries.
+Rotation does not change the owner token.
+
 ## Site asset paths
 Each site is the root of its own subdomain ({username}-{id}.${apexHost}), so
 both absolute and relative asset paths work:

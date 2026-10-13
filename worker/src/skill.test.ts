@@ -22,7 +22,7 @@ describe("served skill", () => {
     expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
     const body = await res.text();
     expect(body).toContain("\nname: example-com\n");
-    expect(body).toContain("\nversion: 0.4.0\n");
+    expect(body).toContain("\nversion: 0.5.0\n");
     expect(body).toContain("homepage: https://example.com\n");
     expect(body).toContain("curl -fsSL https://example.com/skill/install.sh | sh");
     expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc --data-binary @report.md 'https://example.com/publish?id=report'");
@@ -31,6 +31,9 @@ describe("served skill", () => {
     expect(body).toContain(`    mkdir -p ~/.config/agenthost && (umask 077 && printf 'header = "Authorization: Bearer %s"\\nheader = "x-agenthost-user: %s"\\n' 'OWNER_TOKEN' 'USERNAME' > ~/.config/agenthost/example.com.curlrc) && chmod 600 ~/.config/agenthost/example.com.curlrc\n`);
     expect(body).not.toContain("Bearer TOKEN");
     expect(body).not.toContain("username=");
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc 'https://example.com/shares'");
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc -X POST 'https://example.com/key/rotate?id=<siteId>'");
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc -X POST 'https://example.com/a/<username>/<assetId>/rotate'");
     expect(body).toContain("- Free: 50 files, 5 MB per file, 250 MB per site, 500 MB per account");
     expect(body).toContain("[references/http-api.md](references/http-api.md), also served at `https://example.com/skill/references/http-api.md`");
     for (const file of Object.keys(skillFiles)) expect(body).toContain(`\`${file}\``);
@@ -45,6 +48,13 @@ describe("served skill", () => {
     expect((await (await get("/llms.txt")).text())).toContain("signs in at https://account.example.com, generates an agent token, and runs the\ncommand shown there");
   });
 
+  it("teaches llms.txt readers to list shares and regenerate one link", async () => {
+    const body = await (await get("/llms.txt")).text();
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc 'https://example.com/shares'\n");
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc -X POST 'https://example.com/key/rotate?id=<siteId>'\n");
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc -X POST 'https://example.com/a/<username>/<assetId>/rotate'\n");
+  });
+
   it("renders the HTTP reference with a relative link back to SKILL.md", async () => {
     const res = await get("/skill/references/http-api.md");
     expect(res.status).toBe(200);
@@ -57,6 +67,8 @@ describe("served skill", () => {
     expect(body).toContain("| Size per site | 250 MB | 1 GB |");
     expect(body).toContain("| Single asset | 100 MB | 5 GB |");
     expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc -X POST 'https://example.com/key/rotate?id=myblog'");
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc 'https://example.com/shares'");
+    expect(body).toContain("curl -s -K ~/.config/agenthost/example.com.curlrc -X POST 'https://example.com/a/cleverotter4f2/k7m2p4q8r9s3t5u6/rotate'");
     expect(body).not.toContain("{{");
     expect(body).not.toContain("agenthost.page");
   });
