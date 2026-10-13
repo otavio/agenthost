@@ -1,13 +1,14 @@
 import { Hono } from "hono";
-import type { Context } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import type { Env } from "./env";
 import { handlePublish } from "./publish";
 import { verifyOwner, type OwnerCtx } from "./auth";
-import { getMeta, putMeta, putUser, type SiteMeta } from "./storage";
-import { generateAccessKey, sha256Hex, sanitizeSiteId, siteHost, shareUrl } from "./ids";
+import { getMeta, putMeta, type SiteMeta } from "./storage";
+import { sanitizeSiteId } from "./ids";
+import { listShares, rotateSiteShare } from "./shares";
 import { llmsTxt } from "./llms";
 import { renderTemplate, skillName, skillRoutes, skillVars } from "./skill";
-import { completeAsset, createAsset, deleteAsset, serveAsset } from "./assets";
+import { completeAsset, createAsset, deleteAsset, rotateAsset, serveAsset } from "./assets";
 
 type Ctx = Context<{ Bindings: Env }>;
 
@@ -23,6 +24,11 @@ async function requireSite(c: Ctx, username: string): Promise<{ siteId: string; 
   if (!meta) return c.json({ error: "site not found" }, 404);
   return { siteId, meta };
 }
+
+const noStore: MiddlewareHandler = async (c, next) => {
+  c.header("cache-control", "no-store");
+  await next();
+};
 
 // Tolerates an empty/non-JSON body.
 async function readBody(c: Ctx): Promise<Record<string, unknown>> {
@@ -41,22 +47,23 @@ app.post("/publish", (c) => handlePublish(c.req.raw, c.env));
 // share page is served here, but neither uploads nor downloads cross the Worker.
 app.post("/asset", createAsset);
 app.post("/a/:username/:id/complete", completeAsset);
+app.post("/a/:username/:id/rotate", noStore, rotateAsset);
 app.delete("/a/:username/:id", deleteAsset);
 app.get("/a/:username/:id", serveAsset);
 
-// Rotating the key invalidates existing share links.
-app.post("/key/rotate", async (c) => {
+app.get("/shares", noStore, async (c) => {
   const owner = await requireOwner(c);
   if (owner instanceof Response) return owner;
-  const site = await requireSite(c, owner.username);
-  if (site instanceof Response) return site;
+  return c.json(await listShares(c.env.SITES, owner, c.env.APEX_HOST));
+});
 
-  const accessKey = generateAccessKey();
-  site.meta.keyHash = await sha256Hex(accessKey);
-  site.meta.public = false;
-  await putMeta(c.env.SITES, owner.username, site.siteId, site.meta);
-  const url = shareUrl(siteHost(owner.username, site.siteId, c.env.APEX_HOST), accessKey);
-  return c.json({ ok: true, accessKey, public: false, shareUrl: url });
+app.post("/key/rotate", noStore, async (c) => {
+  const owner = await requireOwner(c);
+  if (owner instanceof Response) return owner;
+  const siteId = sanitizeSiteId(c.req.query("id"));
+  if (!siteId) return c.json({ error: "id required" }, 400);
+  const rotated = await rotateSiteShare(c.env.SITES, owner, siteId, c.env.APEX_HOST);
+  return rotated ? c.json(rotated) : c.json({ error: "site not found" }, 404);
 });
 
 app.post("/key/public", async (c) => {

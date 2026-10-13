@@ -122,6 +122,9 @@ export const siteHost = (username: string, siteId: string, apex: string) => `${u
 export const siteUrl = (host: string) => `https://${host}/`;
 export const shareUrl = (host: string, key?: string | null) => `https://${host}/${key ? `?k=${key}` : ""}`;
 
+export const assetUrl = (apex: string, username: string, id: string) =>
+  `https://${apex}/a/${encodeURIComponent(username)}/${encodeURIComponent(id)}`;
+
 // Caller identity for the rate limiters. Falls back to a shared sentinel when the
 // header is absent (e.g. local dev) so the limiter key stays well-formed.
 export const clientIp = (req: Request): string => req.headers.get("cf-connecting-ip") ?? "unknown";
