@@ -27,7 +27,7 @@
     },
     {
       "name": "Deploy",
-      "command": "direnv exec . pnpm deploy",
+      "command": "direnv exec . pnpm run deploy",
       "icon": "build"
     }
   ]
