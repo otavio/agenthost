@@ -15,12 +15,14 @@ import {
   type AssetMeta,
 } from "./storage";
 import {
+  assetUrl,
   clientIp,
   contentTypeFor,
   generateAccessKey,
   sha256Hex,
   timingSafeEqual,
 } from "./ids";
+import { rotateAssetShare } from "./shares";
 import { signDirectDownload, signDirectUpload } from "./r2-signed";
 import { assetDownloadHtml, assetPendingHtml, interstitialHtml, notFoundHtml } from "./templates";
 
@@ -79,10 +81,6 @@ function getCookie(req: Request, name: string): string | null {
     if (eq !== -1 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
   }
   return null;
-}
-
-function assetUrl(apex: string, username: string, id: string): string {
-  return `https://${apex}/a/${encodeURIComponent(username)}/${encodeURIComponent(id)}`;
 }
 
 async function requireOwner(c: Ctx) {
@@ -208,6 +206,15 @@ export async function deleteAsset(c: Ctx): Promise<Response> {
     c.env.SITES.delete(assetMetaKey(owner.username, id)),
   ]);
   return c.json({ ok: true });
+}
+
+export async function rotateAsset(c: Ctx): Promise<Response> {
+  const owner = await requireOwner(c);
+  if (owner instanceof Response) return owner;
+  const id = c.req.param("id");
+  if (!id || c.req.param("username") !== owner.username) return c.json({ error: "asset not found" }, 404);
+  const rotated = await rotateAssetShare(c.env.SITES, owner, id, c.env.APEX_HOST);
+  return rotated ? c.json(rotated) : c.json({ error: "asset not found" }, 404);
 }
 
 export async function serveAsset(c: Ctx): Promise<Response> {

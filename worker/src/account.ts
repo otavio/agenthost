@@ -5,28 +5,16 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Env } from "./env";
-import { LIMITS } from "./config";
 import { verifyAccessJwt, type OwnerCtx } from "./auth";
 import { normalizeEmail, userForEmail } from "./invites";
 import { renameAccount } from "./rename";
 import { credentialsCommand, credentialsFile } from "./skill";
-import {
-  assetMetaKey,
-  deleteSite,
-  getAssetMeta,
-  getMeta,
-  listAssetMetas,
-  putMeta,
-  putUser,
-  siteRecords,
-  type SiteMeta,
-} from "./storage";
-import { generateAccessKey, generateOwnerToken, sanitizeSiteId, sha256Hex, shareUrl, siteHost, siteUrl } from "./ids";
+import { assetMetaKey, deleteSite, getAssetMeta, getMeta, putMeta, putUser, type SiteMeta } from "./storage";
+import { generateOwnerToken, sanitizeSiteId, sha256Hex } from "./ids";
+import { listShares, rotateSiteShare } from "./shares";
 
 type AccountEnv = { Bindings: Env; Variables: { owner: OwnerCtx } };
 type Ctx = Context<AccountEnv>;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Viewer = { ok: true; owner: OwnerCtx } | { ok: false; error: "forbidden" | "not invited"; email?: string };
 
@@ -59,14 +47,6 @@ function trustedOrigin(origin: string | null, env: Env): boolean {
   return url?.protocol === "http:" && ["localhost", "127.0.0.1", host].includes(url.hostname);
 }
 
-const expiresAt = (owner: OwnerCtx, lastDeployAt: number) => {
-  const days = LIMITS[owner.user.plan].retentionDays;
-  return days === null ? null : lastDeployAt + days * DAY_MS;
-};
-
-const assetUrl = (apex: string, username: string, id: string) =>
-  `https://${apex}/a/${encodeURIComponent(username)}/${encodeURIComponent(id)}`;
-
 async function requireSite(c: Ctx): Promise<{ siteId: string; meta: SiteMeta } | Response> {
   const siteId = sanitizeSiteId(c.req.query("id"));
   if (!siteId) return c.json({ error: "id required" }, 400);
@@ -86,30 +66,8 @@ api.use("*", async (c, next) => {
 });
 
 api.get("/me", async (c) => {
-  const { username, user } = c.var.owner;
-  const apex = c.env.APEX_HOST;
-  const sites = [];
-  for await (const { siteId, meta } of siteRecords(c.env.SITES, username, user)) {
-    sites.push({
-      id: siteId,
-      url: siteUrl(siteHost(username, siteId, apex)),
-      public: meta.public,
-      bytes: meta.bytes,
-      fileCount: meta.fileCount,
-      lastDeployAt: meta.lastDeployAt,
-      expiresAt: expiresAt(c.var.owner, meta.lastDeployAt),
-      takenDown: meta.tombstone ?? false,
-    });
-  }
-  const assets = (await listAssetMetas(c.env.SITES, username)).map((a) => ({
-    id: a.id,
-    name: a.name,
-    size: a.bytes,
-    public: a.public,
-    status: a.status,
-    url: assetUrl(apex, username, a.id),
-    expiresAt: expiresAt(c.var.owner, a.lastDeployAt),
-  }));
+  const { user } = c.var.owner;
+  const { username, sites, assets } = await listShares(c.env.SITES, c.var.owner, c.env.APEX_HOST);
   return c.json({ username, email: user.email, plan: user.plan, renamedFrom: user.renamedFrom, sites, assets });
 });
 
@@ -130,15 +88,10 @@ api.post("/username", async (c) => {
 
 // Matches the apex /key/rotate, so old share links stop working.
 api.post("/site/rotate", async (c) => {
-  const site = await requireSite(c);
-  if (site instanceof Response) return site;
-  const { username } = c.var.owner;
-  const accessKey = generateAccessKey();
-  site.meta.keyHash = await sha256Hex(accessKey);
-  site.meta.public = false;
-  await putMeta(c.env.SITES, username, site.siteId, site.meta);
-  const url = shareUrl(siteHost(username, site.siteId, c.env.APEX_HOST), accessKey);
-  return c.json({ ok: true, accessKey, public: false, shareUrl: url });
+  const siteId = sanitizeSiteId(c.req.query("id"));
+  if (!siteId) return c.json({ error: "id required" }, 400);
+  const rotated = await rotateSiteShare(c.env.SITES, c.var.owner, siteId, c.env.APEX_HOST);
+  return rotated ? c.json(rotated) : c.json({ error: "site not found" }, 404);
 });
 
 api.post("/site/public", async (c) => {
