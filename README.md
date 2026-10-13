@@ -162,7 +162,7 @@ All actions run through direnv.
 ## Build & deploy
 
 ```bash
-pnpm deploy             # turbo build → copy dist into public/ → wrangler deploy
+pnpm run deploy         # turbo build → copy dist into public/ → wrangler deploy
 ```
 
 One `wrangler deploy` ships everything: the landing and admin are built to static
