@@ -1,7 +1,7 @@
 ---
 name: {{skillName}}
 version: 0.4.0
-description: "Publishes a page, docs or file behind a private share link. Use when a deliverable reads better as a page than as chat, or is too big to send."
+description: "Publishes a page, docs or file with public or private access. Use when a deliverable reads better as a page than as chat, or is too big to send."
 metadata:
   homepage: https://{{apexHost}}
   hermes:
@@ -13,7 +13,7 @@ metadata:
       bins: [curl, tar]
 ---
 
-Publish a page, a folder or a set of Markdown docs, or upload a large file, and get back a **private link** a human opens in one click. It's plain `curl` and `tar` against `https://{{apexHost}}`, with nothing else to install.
+Publish a page, a folder or a set of Markdown docs, or upload a large file, and get back a link a human opens in one click. Sites can be public or private. It's plain `curl` and `tar` against `https://{{apexHost}}`, with nothing else to install.
 
 ## Install or update
 
@@ -22,6 +22,12 @@ curl -fsSL https://{{apexHost}}/skill/install.sh | sh
 ```
 
 It saves the skill's files, `SKILL.md` and `references/http-api.md`, into `{{skillName}}/` under `~/.claude/skills` and `~/.agents/skills`, and rerunning it updates them. To install yourself instead, save each file from `https://{{apexHost}}/skill/<file>` as `<your skills dir>/{{skillName}}/<file>`, keeping the `references/` folder.
+
+## Choose visibility
+
+If the user has specified public or private access, use that choice. Otherwise, ask: "Should this be public or private?" Explain that public access needs no key, while private access needs the share link's key. Wait for the answer before publishing or uploading. You can prepare the artifact while you wait.
+
+Downloadable assets uploaded through `/asset` support private access only. If the user wants one public, explain this limit before uploading. A file within the site limits can instead use `/publish?file=<name>` with public access.
 
 ## One account, saved in your home directory
 
@@ -58,11 +64,30 @@ What the body can be:
 
 Absolute (`/css/app.css`) and relative (`./css/app.css`) asset paths both resolve, since each site is its own subdomain root.
 
+New sites start private. After publishing, set the chosen visibility with the returned `siteId` as `id`:
+
+```bash
+# Public access
+curl -s -K {{credentialsFile}} -X POST 'https://{{apexHost}}/key/public?id=<siteId>&public=true'
+# Private access
+curl -s -K {{credentialsFile}} -X POST 'https://{{apexHost}}/key/public?id=<siteId>&public=false'
+```
+
+Check that the response reports `ok: true` and the chosen `public` value before sharing the URL. Redeploys preserve visibility. For a private redeploy of an existing site, set `public=false` before replacing its content.
+
 ## What to hand the human
 
-`shareUrl` carries the site's access key (`?k=…`) and logs the visitor in on first open. **The key is only returned on a site's first publish**: a redeploy returns a bare `shareUrl` that asks for a key. So record the link from the first publish of each `id` next to the deliverable, and give that same link again after redeploys. Pages already open in a browser reload themselves when you republish.
+For public sites, use the bare `url`. For private sites, use the complete `shareUrl` with its access key (`?k=…`), which logs the visitor in on first open. **The key is only returned on a site's first publish**: a redeploy returns a bare `shareUrl` that asks for a key. So record the link from the first publish of each `id` next to the deliverable, and give that same link again after private redeploys. Pages already open in a browser reload themselves when you republish.
 
-If the link is lost, `POST /key/rotate` mints a new one and kills the old ones. The human can do the same with "New share link" in the account dashboard. To remove the gate completely, make the site public (see the reference).
+If the link is lost, `POST /key/rotate` mints a new one and kills the old ones. The human can do the same with "New share link" in the account dashboard.
+
+After a successful publish or completed asset upload, with the chosen visibility in place, open the final URL in the user's browser. Use the available browser tool or system URL opener. If neither is available, state that you could not open it.
+
+Return a clickable link and the complete URL in a fenced `text` code block so the user can copy it. For private links, keep the full `?k=…` value even if the browser redirects to a bare URL:
+
+```text
+https://<username>-<siteId>.{{apexHost}}/?k=<accessKey>
+```
 
 ## Upload a downloadable asset
 
@@ -86,7 +111,7 @@ curl -s -K {{credentialsFile}} -X POST '<completeUrl>'
 
 Step 2 goes to R2, not to {{apexHost}}, so it must not use `-K`. That would send your owner token to R2 and break the upload's signature.
 
-Hand over the `shareUrl` from **step 1**; completing doesn't repeat it.
+After step 3 succeeds, open and hand over the `shareUrl` from **step 1** as described above; completing doesn't repeat it.
 
 ## Limits
 
