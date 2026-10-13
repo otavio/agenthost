@@ -166,13 +166,13 @@ both static bundles.
 ## 7. Verify
 
 Invite your own email from the admin console, sign in at
-`https://account.example.com`, and generate an agent token. Then:
+`https://account.example.com`, generate an agent token, and run the save command
+it shows. Then:
 
 ```bash
 # publish a one-file site
-echo '<h1>hello</h1>' | curl -s --data-binary @- \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: text/html' "https://example.com/publish?id=test&username=$USERNAME"
+echo '<h1>hello</h1>' | curl -s -K ~/.config/agenthost/example.com.curlrc --data-binary @- \
+  'https://example.com/publish?id=test'
 ```
 
 The JSON response includes a `shareUrl` — open it and you should see the page over

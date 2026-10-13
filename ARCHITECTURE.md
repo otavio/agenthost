@@ -568,7 +568,8 @@ gone. Every account starts as an admin invite.
   stands in for the JWT.
 - **Operations.** `/account/api/me` lists the user's sites and assets. `POST /token`
   stores the hash of a new owner token and returns the token once, which invalidates
-  the previous one. The user can make a site public or private, give it a new share link,
+  the previous one. It also returns `saveCommand`, a shell command that names the
+  username and prompts for the token, and writes the curl config the skill reads. The user can make a site public or private, give it a new share link,
   or delete it with `deleteSite`. A new share link works like `/key/rotate`. The
   Worker stores access keys only as hashes, so the dashboard cannot show an existing
   link. Assets can be

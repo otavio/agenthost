@@ -33,6 +33,13 @@ describe("served skill", () => {
     expect(body).not.toContain("agenthost.page");
   });
 
+  it("sends an agent without credentials to the account dashboard instead of minting an account", async () => {
+    const body = await (await get("/skill/SKILL.md")).text();
+    expect(body).toContain("Ask the human to sign in at `https://account.example.com`, generate an agent token, and run the command shown there in a terminal on this machine.");
+    expect(body).not.toContain("brand-new account");
+    expect((await (await get("/llms.txt")).text())).toContain("signs in at https://account.example.com, generates an agent token, and runs the\ncommand shown there");
+  });
+
   it("renders the HTTP reference with an absolute link back to SKILL.md", async () => {
     const res = await get("/skill/references/http-api.md");
     expect(res.status).toBe(200);

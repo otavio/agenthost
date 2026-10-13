@@ -9,6 +9,7 @@ import { LIMITS } from "./config";
 import { verifyAccessJwt, type OwnerCtx } from "./auth";
 import { normalizeEmail, userForEmail } from "./invites";
 import { renameAccount } from "./rename";
+import { credentialsCommand, credentialsFile } from "./skill";
 import {
   assetMetaKey,
   deleteSite,
@@ -116,7 +117,8 @@ api.post("/token", async (c) => {
   const { username, user } = c.var.owner;
   const token = generateOwnerToken();
   await putUser(c.env.SITES, username, { ...user, tokenHash: await sha256Hex(token) });
-  return c.json({ username, token });
+  const apex = c.env.APEX_HOST;
+  return c.json({ username, token, credentialsFile: credentialsFile(apex), saveCommand: credentialsCommand(apex, username) });
 });
 
 api.post("/username", async (c) => {

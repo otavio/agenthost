@@ -203,6 +203,29 @@ describe("account dashboard API", () => {
     expect((await f.publish(username, second)).status).toBe(200);
   });
 
+  it("returns the command that saves the token to the per-host credentials file", async () => {
+    const f = fixture();
+    const username = await f.invite("ana@example.com");
+    const body = (await (await f.post("/account/api/token")).json()) as { username: string; token: string; credentialsFile: string; saveCommand: string };
+    expect(body.username).toBe(username);
+    expect(body.credentialsFile).toBe("~/.config/agenthost/example.com.curlrc");
+    expect(body.saveCommand).toBe(
+      `(f="$HOME/.config/agenthost/example.com.curlrc"; mkdir -p "\${f%/*}" && umask 077 || exit; u='${username}'; trap 'stty echo 2>/dev/null; exit 130' INT HUP TERM; stty -echo 2>/dev/null; printf 'example.com token (hidden): ' >&2; read -r t; stty echo 2>/dev/null; echo >&2; [ -n "$u" ] && [ -n "$t" ] || exit 1; printf 'header = "Authorization: Bearer %s"\\nheader = "x-agenthost-user: %s"\\n' "$t" "$u" > "$f" && chmod 600 "$f" && echo "Saved $f" >&2)`,
+    );
+    expect(body.saveCommand).not.toContain(body.token);
+  });
+
+  it("publishes with the saved headers alone, without ?username=", async () => {
+    const f = fixture();
+    const username = await f.invite("ana@example.com");
+    const token = await f.token();
+    const res = await handlePublish(new Request("https://example.com/publish?id=docs", {
+      method: "POST", body: "# Home", headers: { authorization: `Bearer ${token}`, "x-agenthost-user": username },
+    }), f.env);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { username: string }).username).toBe(username);
+  });
+
   it("deletes a site and its files", async () => {
     const f = fixture();
     const username = await f.invite("ana@example.com");

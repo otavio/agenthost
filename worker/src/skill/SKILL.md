@@ -29,16 +29,14 @@ Your account lives in `{{credentialsFile}}`, a curl config that every authentica
 
 Check for it with `test -f {{credentialsFile}}`, and never `cat` or print it.
 
-- **It exists**: use it.
-- **It doesn't**: ask the human whether they already have an account on {{apexHost}}.
-  - **They do**: ask them to run this in a terminal on this machine. It prompts for their username, then for their token with the input hidden, so the token never lands in chat or in shell history. Rerunning it replaces the file.
+- **It exists**: use it. A 403 after publishes that worked means the human generated a new token or changed their username. Ask them to set it up again as below.
+- **It doesn't**: publishing is invite-only, and a publish without the file returns 401. Ask the human to sign in at `https://account.{{apexHost}}`, generate an agent token, and run the command shown there in a terminal on this machine. That command already names their username and prompts only for the token, with the input hidden, so the token never lands in chat or in shell history. This one does the same but prompts for the username too:
 
     ```bash
     {{credentialsCommand}}
     ```
 
-  - **They do, but you run in a remote or cloud sandbox** with no terminal they can reach: they may paste their username and token in chat. Write the file with the command under **They don't**, and never echo the token back.
-  - **They don't**: publish once without `-K`. A publish without `Authorization` **mints a brand-new account**, every time, even if you pass a `username`. Save the response's `ownerToken` and `username` with this command, in place of `OWNER_TOKEN` and `USERNAME`, and don't repeat the token in your reply. The `ownerToken` is shown once; lose it and you start over with new URLs.
+- **You run in a remote or cloud sandbox** with no terminal they can reach: they may paste their username and token in chat. Save them with this command, in place of `OWNER_TOKEN` and `USERNAME`, and never echo the token back.
 
     ```bash
     {{writeCredentialsCommand}}
@@ -50,9 +48,6 @@ Check for it with `test -f {{credentialsFile}}`, and never `cat` or print it.
 
 ```bash
 curl -s -K {{credentialsFile}} --data-binary @report.md 'https://{{apexHost}}/publish?id=report'
-
-# only when there is no account yet: mints one, then save it as above
-curl -s --data-binary @report.md 'https://{{apexHost}}/publish?id=report'
 ```
 
 What the body can be:

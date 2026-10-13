@@ -12,20 +12,29 @@ export const llmsTxt = (apexHost: string): string => `# agenthost — publish a 
 
 ## Account (once, done by the human)
 Publishing is invite-only. The operator invites the human by email. The human
-signs in at https://account.${apexHost}, generates an agent token, and gives you
-the token and their username. A publish without the token returns 401.
+signs in at https://account.${apexHost}, generates an agent token, and runs the
+command shown there in a terminal on your machine. It saves the token and the
+username in the curl config ${credentialsFile(apexHost)}, which every request below
+reads with -K. Check for it with \`test -f ${credentialsFile(apexHost)}\` and never print it.
+Without it, a publish returns 401.
+The dashboard's command prompts only for the token. This one prompts for the username too:
+${credentialsCommand(apexHost)}
+If you run in a remote sandbox with no terminal the human can reach, they may paste the
+username and token in chat. Save them with this, in place of OWNER_TOKEN and USERNAME,
+and don't echo the token:
+${writeCredentialsCommand(apexHost)}
+A 403 after publishes that worked means the token was regenerated or the username
+changed. Ask the human to generate a token and run the command again.
 
 ## Publish (one command, zero install)
 # A single .md or .html — pipe it straight in (md renders, html is served as-is;
 # the file lands at the site root /):
-curl -s --data-binary @report.md \\
-  -H 'Authorization: Bearer <ownerToken>' \\
-  'https://${apexHost}/publish?id=report&username=<username>'
+curl -s -K ${credentialsFile(apexHost)} --data-binary @report.md \\
+  'https://${apexHost}/publish?id=report'
 
 # A whole folder — pipe a tar of it:
-tar cf - -C ./dist . | curl -s --data-binary @- \\
-  -H 'Authorization: Bearer <ownerToken>' \\
-  'https://${apexHost}/publish?id=myblog&username=<username>'
+tar cf - -C ./dist . | curl -s -K ${credentialsFile(apexHost)} --data-binary @- \\
+  'https://${apexHost}/publish?id=myblog'
 
 ## Response (JSON)
 {
@@ -34,21 +43,9 @@ tar cf - -C ./dist . | curl -s --data-binary @- \\
   "accessKey": "<the site access key, also embedded in shareUrl>",
   "username": "cleverotter4f2"                                           // your account name (auto-generated, no hyphens)
 }
+Publishing again with the same id replaces the content at the same URL.
 
-## Keep the account (one per host, reused across sessions)
-Save username and ownerToken from the first response in the curl config ${credentialsFile(apexHost)},
-in your home directory and never in a project. Put them in place of OWNER_TOKEN and USERNAME,
-and don't echo the token:
-${writeCredentialsCommand(apexHost)}
-A human who already has an account runs this instead; it prompts for both, with the token hidden:
-${credentialsCommand(apexHost)}
-Check for it with \`test -f ${credentialsFile(apexHost)}\` before minting another account.
-
-## Redeploy the SAME url (needs the account)
-tar cf - -C ./dist . | curl -s -K ${credentialsFile(apexHost)} --data-binary @- \\
-  'https://${apexHost}/publish?id=myblog'
-
-## Large downloadable assets (existing account required)
+## Large downloadable assets
 Three calls, all with -K ${credentialsFile(apexHost)} except the PUT, which goes to R2
 and must not carry your token:
 1. POST https://${apexHost}/asset with JSON

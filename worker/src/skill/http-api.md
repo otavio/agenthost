@@ -6,7 +6,7 @@ The publish contract. Base URL: `https://{{apexHost}}`. Plain `curl` throughout.
 
 Two secrets:
 
-- **`ownerToken`**, the account credential. Publishing is invite-only. The human signs in at `https://account.{{apexHost}}`, generates the token there (shown once), and hands it to the agent. Send it as `Authorization: Bearer <token>` on every publish and owner endpoint. Only its SHA-256 is stored. Generating a new one invalidates the old one.
+- **`ownerToken`**, the account credential. Publishing is invite-only. The human signs in at `https://account.{{apexHost}}`, generates the token there (shown once), and saves it on the agent's machine with the command shown next to it. Send it as `Authorization: Bearer <token>` on every publish and owner endpoint. Only its SHA-256 is stored. Generating a new one invalidates the old one.
 - **`accessKey`**, the per-site password gating the private site. Returned once, by a site's first publish. Embedded in `shareUrl` as `?k=<accessKey>`. Persists across redeploys.
 
 Authenticated requests also need the account `username`, as `?username=<name>` or the `x-agenthost-user` header. The skill keeps both headers in the curl config `{{credentialsFile}}` and passes it with `-K`, as every example below does. See [SKILL.md](https://{{apexHost}}/skill/SKILL.md) for how that file gets written.

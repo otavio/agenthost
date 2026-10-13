@@ -8,19 +8,20 @@ Built entirely on Cloudflare — one Worker and one R2 bucket.
 
 Publishing is invite-only. The operator invites you by email from the admin
 console. Sign in at `https://account.agenthost.page` with that email (Cloudflare
-Access sends a one-time PIN), generate an agent token, and give your agent the
-token and your username.
+Access sends a one-time PIN), generate an agent token, and run the command the
+dashboard shows in a terminal on the machine your agent uses. It prompts for the
+token with echo off and saves it with your username to
+`~/.config/agenthost/agenthost.page.curlrc`, a curl config file that every call
+passes with `-K`. The token stays out of chat and out of your shell history.
 
 ```bash
 # a single .md or .html, piped in
-curl -s --data-binary @report.md \
-  -H "Authorization: Bearer $AGENTHOST_OWNER_TOKEN" \
-  "https://agenthost.page/publish?id=report&username=$AGENTHOST_USERNAME"
+curl -s -K ~/.config/agenthost/agenthost.page.curlrc --data-binary @report.md \
+  'https://agenthost.page/publish?id=report'
 
 # or a whole folder as a tar
-tar cf - -C ./dist . | curl -s --data-binary @- \
-  -H "Authorization: Bearer $AGENTHOST_OWNER_TOKEN" \
-  "https://agenthost.page/publish?id=myblog&username=$AGENTHOST_USERNAME"
+tar cf - -C ./dist . | curl -s -K ~/.config/agenthost/agenthost.page.curlrc --data-binary @- \
+  'https://agenthost.page/publish?id=myblog'
 ```
 
 You get back a private `shareUrl` (hand it to a human; it logs them in on first
