@@ -31,6 +31,8 @@ cp deploy.env.example deploy.env
   `example.com/*` and `*.example.com/*` are derived from it.
 - `ZONE_NAME` → only if `APEX_HOST` is not the zone apex itself.
 - `R2_BUCKET_NAME` → only if you want a bucket other than `agenthost-sites`.
+- `SKILL_NAME` → only if the Agent Skill should not be named after `APEX_HOST`
+  with dots as dashes (`example-com`).
 
 `deploy.env` is git-ignored, so your values never land in the repo and
 `worker/wrangler.jsonc` stays as shipped. `pnpm run deploy` and `pnpm wrangler …`
@@ -211,7 +213,7 @@ publish → serve loop runs offline against a fixture directory.
 | `R2_BUCKET_NAME` | `deploy.env` | assets | Bucket for sites and direct asset uploads (default `agenthost-sites`). |
 | `R2_ACCESS_KEY_ID` | secret | assets | Bucket-scoped S3 access key used only to sign URLs. |
 | `R2_SECRET_ACCESS_KEY` | secret | assets | Bucket-scoped S3 secret used only to sign URLs. |
-| `SKILL_NAME` | `wrangler.jsonc` var | no | Name of the Agent Skill served under `/skill/`. Defaults to `APEX_HOST` with dots as dashes (`example-com`). An invalid name makes `/skill/*` return 500. |
+| `SKILL_NAME` | `deploy.env` | no | Name of the Agent Skill served under `/skill/`. Defaults to `APEX_HOST` with dots as dashes (`example-com`). An invalid name makes `/skill/*` return 500. |
 | `ALLOWED_ADMIN_EMAIL` | secret (`wrangler secret put`) | admin only | Email allowed into the admin. |
 | `ACCESS_TEAM_DOMAIN` | secret (`wrangler secret put`) | admin only | Zero Trust team name. |
 | `ACCESS_AUD` | secret (`wrangler secret put`) | admin only | Access Application AUD tag. |
